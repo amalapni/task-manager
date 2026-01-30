@@ -1,748 +1,535 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, ChevronRight, X, Plus, Check, Circle, Zap, Star, Coffee, Brain, Dumbbell, Palette, FileText, Heart, Sparkles, Smile, Edit2, Minus, RotateCcw } from 'lucide-react';
-
-const ElegantTaskManager = () => {
-  // Task state
-  const [tasks, setTasks] = useState([
-    { 
-      id: 1, 
-      title: 'Morning meditation', 
-      category: 'Self Care',
-      priority: 'medium',
-      dueDate: '2026-01-30',
-      notes: 'Use guided meditation app',
-      completed: false,
-      timeEstimate: 15,
-      subtasks: []
-    }
-  ]);
-  
-  const [expandedTask, setExpandedTask] = useState(null);
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    category: 'Quick Wins',
-    priority: 'medium',
-    dueDate: '',
-    notes: '',
-    timeEstimate: 25,
-    subtasks: []
-  });
-  const [newSubtask, setNewSubtask] = useState('');
-
-  // Drawing state
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawing, setDrawing] = useState(false);
-  const [drawingColor, setDrawingColor] = useState('#9B6B6E');
-  const [lineWidth, setLineWidth] = useState(2);
-  const canvasRef = useRef(null);
-  const [savedDrawing, setSavedDrawing] = useState(null);
-  
-  // ADHD-friendly categories with icons
-  const categories = {
-    'Quick Wins': { icon: Zap, color: '#E8B4B8' },
-    'Deep Focus': { icon: Brain, color: '#9B6B6E' },
-    'Body Doubling': { icon: Coffee, color: '#D4A5A5' },
-    'Movement Break': { icon: Dumbbell, color: '#B4C7D4' },
-    'Creative Flow': { icon: Palette, color: '#E8D4B8' },
-    'Admin Stuff': { icon: FileText, color: '#B8B8B8' },
-    'Self Care': { icon: Heart, color: '#D4E8B8' },
-    'Dopamine Hits': { icon: Sparkles, color: '#FFD4E5' },
-    'Later Maybe': { icon: Smile, color: '#E8E8E8' }
-  };
-
-  const quadrants = {
-    'urgent-important': { 
-      title: 'Do First', 
-      subtitle: 'Urgent & Important',
-      priority: 'high',
-      color: '#D88B8B',
-      icon: '🔴'
-    },
-    'not-urgent-important': { 
-      title: 'Schedule', 
-      subtitle: 'Important, Not Urgent',
-      priority: 'medium',
-      color: '#E8B4B8',
-      icon: '🟡'
-    },
-    'urgent-not-important': { 
-      title: 'Delegate', 
-      subtitle: 'Urgent, Not Important',
-      priority: 'low',
-      color: '#B4C7D4',
-      icon: '🟢'
-    },
-    'not-urgent-not-important': { 
-      title: 'Later', 
-      subtitle: 'Neither Urgent nor Important',
-      priority: 'later',
-      color: '#E8E8E8',
-      icon: '⚪'
-    }
-  };
-
-  const priorityToQuadrant = {
-    'high': 'urgent-important',
-    'medium': 'not-urgent-important',
-    'low': 'urgent-not-important',
-    'later': 'not-urgent-not-important'
-  };
-
-  // Current date display
-  const getCurrentDate = () => {
-    const today = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return today.toLocaleDateString('en-US', options);
-  };
-
-  // Canvas drawing
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas && isDrawing) {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      
-      // Restore saved drawing if it exists
-      if (savedDrawing) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0);
-        };
-        img.src = savedDrawing;
-      }
-    }
-  }, [isDrawing, savedDrawing]);
-
-  const startDrawing = (e) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    setDrawing(true);
-  };
-
-  const draw = (e) => {
-    if (!drawing || !isDrawing) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    ctx.strokeStyle = drawingColor;
-    ctx.lineWidth = lineWidth;
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    setDrawing(false);
-    if (isDrawing) {
-      saveDrawing();
-    }
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setSavedDrawing(null);
-    localStorage.removeItem('canvas-drawing');
-  };
-
-  const saveDrawing = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const dataUrl = canvas.toDataURL();
-      setSavedDrawing(dataUrl);
-      localStorage.setItem('canvas-drawing', dataUrl);
-    }
-  };
-
-  const toggleDrawingMode = () => {
-    if (isDrawing) {
-      // Save before turning off
-      saveDrawing();
-    }
-    setIsDrawing(!isDrawing);
-  };
-
-  // Task functions
-  const addTask = () => {
-    if (newTask.title.trim()) {
-      setTasks([...tasks, { 
-        id: Date.now(), 
-        ...newTask,
-        completed: false 
-      }]);
-      setNewTask({
-        title: '',
-        category: 'Quick Wins',
-        priority: 'medium',
-        dueDate: '',
-        notes: '',
-        timeEstimate: 25,
-        subtasks: []
-      });
-      setShowAddTask(false);
-    }
-  };
-
-  const addSubtask = (taskId) => {
-    if (newSubtask.trim()) {
-      setTasks(tasks.map(task => 
-        task.id === taskId 
-          ? { ...task, subtasks: [...(task.subtasks || []), { id: Date.now(), text: newSubtask, completed: false }] }
-          : task
-      ));
-      setNewSubtask('');
-    }
-  };
-
-  const toggleSubtask = (taskId, subtaskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { 
-            ...task, 
-            subtasks: task.subtasks.map(st => 
-              st.id === subtaskId ? { ...st, completed: !st.completed } : st
-            )
-          }
-        : task
-    ));
-  };
-
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
-  };
-
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
-    setExpandedTask(null);
-  };
-
-  // Save to browser
-  useEffect(() => {
-    const saved = localStorage.getItem('elegant-tasks');
-    if (saved) {
-      const loadedTasks = JSON.parse(saved);
-      const validatedTasks = loadedTasks.map(task => ({
-        ...task,
-        priority: task.priority || 'medium',
-        category: task.category || 'Quick Wins',
-        subtasks: task.subtasks || []
-      }));
-      setTasks(validatedTasks);
-    }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - Eisenhower Matrix</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="root"></div>
     
-    // Load saved drawing
-    const savedCanvas = localStorage.getItem('canvas-drawing');
-    if (savedCanvas) {
-      setSavedDrawing(savedCanvas);
-    }
-  }, []);
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Lucide React icons as inline SVG components
+        const Calendar = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+        const ChevronRight = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>;
+        const X = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const Plus = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const Check = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>;
+        const Circle = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/></svg>;
+        const Zap = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+        const Star = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+        const Coffee = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
+        const Brain = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>;
+        const Dumbbell = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>;
+        const Palette = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>;
+        const FileText = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
+        const Heart = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>;
+        const Sparkles = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>;
+        const Smile = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>;
+        const Edit2 = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>;
+        const Minus = ({className, style}) => <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const RotateCcw = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>;
 
-  useEffect(() => {
-    localStorage.setItem('elegant-tasks', JSON.stringify(tasks));
-  }, [tasks]);
+        const ElegantTaskManager = () => {
+          const [tasks, setTasks] = useState([
+            { 
+              id: 1, 
+              title: 'Morning meditation', 
+              category: 'Self Care',
+              priority: 'medium',
+              dueDate: '2026-01-30',
+              notes: 'Use guided meditation app',
+              completed: false,
+              timeEstimate: 15,
+              subtasks: []
+            }
+          ]);
+          
+          const [expandedTask, setExpandedTask] = useState(null);
+          const [showAddTask, setShowAddTask] = useState(false);
+          const [newTask, setNewTask] = useState({
+            title: '',
+            category: 'Quick Wins',
+            priority: 'medium',
+            dueDate: '',
+            notes: '',
+            timeEstimate: 25,
+            subtasks: []
+          });
+          const [newSubtask, setNewSubtask] = useState('');
+          const [isDrawing, setIsDrawing] = useState(false);
+          const [drawing, setDrawing] = useState(false);
+          const [drawingColor, setDrawingColor] = useState('#9B6B6E');
+          const [lineWidth, setLineWidth] = useState(2);
+          const canvasRef = useRef(null);
+          const [savedDrawing, setSavedDrawing] = useState(null);
+          
+          const categories = {
+            'Quick Wins': { icon: Zap, color: '#E8B4B8' },
+            'Deep Focus': { icon: Brain, color: '#9B6B6E' },
+            'Body Doubling': { icon: Coffee, color: '#D4A5A5' },
+            'Movement Break': { icon: Dumbbell, color: '#B4C7D4' },
+            'Creative Flow': { icon: Palette, color: '#E8D4B8' },
+            'Admin Stuff': { icon: FileText, color: '#B8B8B8' },
+            'Self Care': { icon: Heart, color: '#D4E8B8' },
+            'Dopamine Hits': { icon: Sparkles, color: '#FFD4E5' },
+            'Later Maybe': { icon: Smile, color: '#E8E8E8' }
+          };
 
-  const getTasksByQuadrant = (quadrantKey) => {
-    const quadrant = quadrants[quadrantKey];
-    return tasks.filter(t => !t.completed && t.priority === quadrant.priority);
-  };
+          const quadrants = {
+            'urgent-important': { 
+              title: 'Do First', 
+              subtitle: 'Urgent & Important',
+              priority: 'high',
+              color: '#D88B8B',
+              icon: '🔴'
+            },
+            'not-urgent-important': { 
+              title: 'Schedule', 
+              subtitle: 'Important, Not Urgent',
+              priority: 'medium',
+              color: '#E8B4B8',
+              icon: '🟡'
+            },
+            'urgent-not-important': { 
+              title: 'Delegate', 
+              subtitle: 'Urgent, Not Important',
+              priority: 'low',
+              color: '#B4C7D4',
+              icon: '🟢'
+            },
+            'not-urgent-not-important': { 
+              title: 'Later', 
+              subtitle: 'Neither Urgent nor Important',
+              priority: 'later',
+              color: '#E8E8E8',
+              icon: '⚪'
+            }
+          };
 
-  return (
-    <div className="min-h-screen" style={{ 
-      backgroundColor: '#FAFAF8',
-      fontFamily: "'Inter', -apple-system, sans-serif"
-    }}>
-      {/* Drawing canvas overlay */}
-      {isDrawing && (
-        <div className="fixed inset-0 z-50">
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0 cursor-crosshair"
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
-          />
-        </div>
-      )}
+          const getCurrentDate = () => {
+            const today = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return today.toLocaleDateString('en-US', options);
+          };
 
-      <div className="max-w-7xl mx-auto px-6 py-8 relative">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl mb-2 tracking-wide" style={{
-            fontFamily: "'Bodoni Moda', 'Playfair Display', serif",
-            color: '#2C2C2C',
-            fontWeight: '400'
-          }}>
-            Daily Tasks
-          </h1>
-          <div className="flex items-center justify-center gap-2 text-base font-medium" style={{ color: '#6B6B6B' }}>
-            <Calendar className="w-4 h-4" />
-            <span>{getCurrentDate()}</span>
-          </div>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex justify-center gap-3 mb-8 flex-wrap relative z-10">
-          <button
-            onClick={() => setShowAddTask(true)}
-            className="px-6 py-3 bg-white border-2 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
-            style={{ borderColor: '#9B6B6E', color: '#9B6B6E' }}
-          >
-            <Plus className="w-5 h-5" />
-            <span>New Task</span>
-          </button>
-
-          <button
-            onClick={toggleDrawingMode}
-            className="px-6 py-3 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
-            style={{ 
-              backgroundColor: isDrawing ? '#9B6B6E' : 'white',
-              color: isDrawing ? 'white' : '#9B6B6E',
-              border: `2px solid ${isDrawing ? '#9B6B6E' : '#E8E8E8'}`
-            }}
-          >
-            <Edit2 className="w-5 h-5" />
-            <span>{isDrawing ? 'Drawing Mode ON' : 'Draw / Annotate'}</span>
-          </button>
-
-          {isDrawing && (
-            <>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2" style={{ borderColor: '#E8E8E8' }}>
-                <Palette className="w-5 h-5" style={{ color: '#6B6B6B' }} />
-                {['#9B6B6E', '#E8B4B8', '#D4A5A5', '#B4C7D4', '#2C2C2C'].map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setDrawingColor(color)}
-                    className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
-                    style={{ 
-                      backgroundColor: color,
-                      borderColor: drawingColor === color ? '#2C2C2C' : 'transparent',
-                      borderWidth: drawingColor === color ? '3px' : '2px'
-                    }}
-                  />
-                ))}
-              </div>
+          useEffect(() => {
+            const canvas = canvasRef.current;
+            if (canvas && isDrawing) {
+              canvas.width = window.innerWidth;
+              canvas.height = window.innerHeight;
+              const ctx = canvas.getContext('2d');
+              ctx.lineCap = 'round';
+              ctx.lineJoin = 'round';
               
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2" style={{ borderColor: '#E8E8E8' }}>
-                <Minus className="w-5 h-5" style={{ color: '#6B6B6B' }} />
-                <input
-                  type="range"
-                  min="1"
-                  max="8"
-                  value={lineWidth}
-                  onChange={(e) => setLineWidth(e.target.value)}
-                  className="w-24"
-                />
-              </div>
+              if (savedDrawing) {
+                const img = new Image();
+                img.onload = () => {
+                  ctx.drawImage(img, 0, 0);
+                };
+                img.src = savedDrawing;
+              }
+            }
+          }, [isDrawing, savedDrawing]);
 
-              <button
-                onClick={clearCanvas}
-                className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50"
-                style={{ borderColor: '#E8E8E8', color: '#6B6B6B' }}
-              >
-                <RotateCcw className="w-5 h-5" />
-                <span>Clear</span>
-              </button>
-            </>
-          )}
-        </div>
+          const startDrawing = (e) => {
+            if (!isDrawing) return;
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+            setDrawing(true);
+          };
 
-        {/* Four Quadrants */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          {Object.entries(quadrants).map(([key, quadrant]) => {
-            const quadrantTasks = getTasksByQuadrant(key);
+          const draw = (e) => {
+            if (!drawing || !isDrawing) return;
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            ctx.strokeStyle = drawingColor;
+            ctx.lineWidth = lineWidth;
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+          };
+
+          const stopDrawing = () => {
+            setDrawing(false);
+            if (isDrawing) {
+              saveDrawing();
+            }
+          };
+
+          const clearCanvas = () => {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            setSavedDrawing(null);
+            localStorage.removeItem('canvas-drawing');
+          };
+
+          const saveDrawing = () => {
+            const canvas = canvasRef.current;
+            if (canvas) {
+              const dataUrl = canvas.toDataURL();
+              setSavedDrawing(dataUrl);
+              localStorage.setItem('canvas-drawing', dataUrl);
+            }
+          };
+
+          const toggleDrawingMode = () => {
+            if (isDrawing) {
+              saveDrawing();
+            }
+            setIsDrawing(!isDrawing);
+          };
+
+          const addTask = () => {
+            if (newTask.title.trim()) {
+              setTasks([...tasks, { 
+                id: Date.now(), 
+                ...newTask,
+                completed: false 
+              }]);
+              setNewTask({
+                title: '',
+                category: 'Quick Wins',
+                priority: 'medium',
+                dueDate: '',
+                notes: '',
+                timeEstimate: 25,
+                subtasks: []
+              });
+              setShowAddTask(false);
+            }
+          };
+
+          const addSubtask = (taskId) => {
+            if (newSubtask.trim()) {
+              setTasks(tasks.map(task => 
+                task.id === taskId 
+                  ? { ...task, subtasks: [...(task.subtasks || []), { id: Date.now(), text: newSubtask, completed: false }] }
+                  : task
+              ));
+              setNewSubtask('');
+            }
+          };
+
+          const toggleSubtask = (taskId, subtaskId) => {
+            setTasks(tasks.map(task => 
+              task.id === taskId 
+                ? { 
+                    ...task, 
+                    subtasks: task.subtasks.map(st => 
+                      st.id === subtaskId ? { ...st, completed: !st.completed } : st
+                    )
+                  }
+                : task
+            ));
+          };
+
+          const toggleTask = (id) => {
+            setTasks(tasks.map(task => 
+              task.id === id ? { ...task, completed: !task.completed } : task
+            ));
+          };
+
+          const deleteTask = (id) => {
+            setTasks(tasks.filter(task => task.id !== id));
+            setExpandedTask(null);
+          };
+
+          useEffect(() => {
+            const saved = localStorage.getItem('elegant-tasks');
+            if (saved) {
+              const loadedTasks = JSON.parse(saved);
+              const validatedTasks = loadedTasks.map(task => ({
+                ...task,
+                priority: task.priority || 'medium',
+                category: task.category || 'Quick Wins',
+                subtasks: task.subtasks || []
+              }));
+              setTasks(validatedTasks);
+            }
             
-            return (
-              <div 
-                key={key}
-                className="bg-white rounded-xl border-2 p-6 min-h-[400px]"
-                style={{ borderColor: quadrant.color }}
-              >
-                <div className="mb-4 pb-3 border-b-2" style={{ borderColor: quadrant.color }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl">{quadrant.icon}</span>
-                    <h2 className="text-2xl font-normal tracking-wide" style={{
-                      fontFamily: "'Bodoni Moda', serif",
-                      color: '#2C2C2C'
-                    }}>
-                      {quadrant.title}
-                    </h2>
+            const savedCanvas = localStorage.getItem('canvas-drawing');
+            if (savedCanvas) {
+              setSavedDrawing(savedCanvas);
+            }
+          }, []);
+
+          useEffect(() => {
+            localStorage.setItem('elegant-tasks', JSON.stringify(tasks));
+          }, [tasks]);
+
+          const getTasksByQuadrant = (quadrantKey) => {
+            const quadrant = quadrants[quadrantKey];
+            return tasks.filter(t => !t.completed && t.priority === quadrant.priority);
+          };
+
+          return (
+            <div className="min-h-screen" style={{ 
+              backgroundColor: '#FAFAF8',
+              fontFamily: "'Inter', -apple-system, sans-serif"
+            }}>
+              {isDrawing && (
+                <div className="fixed inset-0 z-50">
+                  <canvas
+                    ref={canvasRef}
+                    className="absolute inset-0 cursor-crosshair"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                  />
+                </div>
+              )}
+
+              <div className="max-w-7xl mx-auto px-6 py-8 relative">
+                <div className="text-center mb-8">
+                  <h1 className="text-5xl mb-2 tracking-wide" style={{
+                    fontFamily: "'Bodoni Moda', 'Playfair Display', serif",
+                    color: '#2C2C2C',
+                    fontWeight: '400'
+                  }}>
+                    Daily Tasks
+                  </h1>
+                  <div className="flex items-center justify-center gap-2 text-base font-medium" style={{ color: '#6B6B6B' }}>
+                    <Calendar className="w-4 h-4" />
+                    <span>{getCurrentDate()}</span>
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: quadrant.color }}>
-                    {quadrant.subtitle}
-                  </p>
                 </div>
 
-                <div className="space-y-3">
-                  {quadrantTasks.map(task => {
-                    const CategoryIcon = categories[task.category].icon;
-                    const isExpanded = expandedTask === task.id;
-                    
-                    return (
-                      <div
-                        key={task.id}
-                        className="border-2 rounded-lg transition-all hover:shadow-md"
-                        style={{ 
-                          borderColor: isExpanded ? categories[task.category].color : '#E8E8E8',
-                          backgroundColor: isExpanded ? '#FAFAF8' : 'white'
-                        }}
-                      >
-                        <div 
-                          className="p-4 cursor-pointer"
-                          onClick={() => setExpandedTask(isExpanded ? null : task.id)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleTask(task.id);
-                              }}
-                              className="flex-shrink-0 mt-1"
-                            >
-                              {task.completed ? (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: categories[task.category].color }}>
-                                  <Check className="w-3 h-3 text-white font-bold" />
-                                </div>
-                              ) : (
-                                <Circle className="w-5 h-5" style={{ color: categories[task.category].color, strokeWidth: 2.5 }} />
-                              )}
-                            </button>
-                            
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-base font-semibold mb-1" style={{ color: '#2C2C2C' }}>
-                                {task.title}
-                              </h3>
-                              
-                              <div className="flex items-center gap-2 text-xs">
-                                <CategoryIcon className="w-3 h-3" style={{ color: categories[task.category].color }} />
-                                <span className="font-medium" style={{ color: '#6B6B6B' }}>
-                                  {task.category}
-                                </span>
-                                {task.timeEstimate && (
-                                  <>
-                                    <span style={{ color: '#D0D0D0' }}>•</span>
-                                    <span className="font-medium" style={{ color: '#6B6B6B' }}>
-                                      {task.timeEstimate}m
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <ChevronRight 
-                              className="w-5 h-5 transition-transform flex-shrink-0"
-                              style={{ 
-                                color: '#9B6B6E',
-                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
-                              }}
-                            />
-                          </div>
-                        </div>
+                <div className="flex justify-center gap-3 mb-8 flex-wrap relative z-10">
+                  <button
+                    onClick={() => setShowAddTask(true)}
+                    className="px-6 py-3 bg-white border-2 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
+                    style={{ borderColor: '#9B6B6E', color: '#9B6B6E' }}
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span>New Task</span>
+                  </button>
 
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <div className="px-4 pb-4 pt-2 border-t-2 space-y-3" style={{ borderColor: '#F5F5F5' }}>
-                            {task.dueDate && (
-                              <div>
-                                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#9B6B6E' }}>
-                                  Due Date
-                                </div>
-                                <div className="flex items-center gap-2 text-sm font-medium" style={{ color: '#6B6B6B' }}>
-                                  <Calendar className="w-4 h-4" />
-                                  <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                                </div>
-                              </div>
-                            )}
+                  <button
+                    onClick={toggleDrawingMode}
+                    className="px-6 py-3 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
+                    style={{ 
+                      backgroundColor: isDrawing ? '#9B6B6E' : 'white',
+                      color: isDrawing ? 'white' : '#9B6B6E',
+                      border: `2px solid ${isDrawing ? '#9B6B6E' : '#E8E8E8'}`
+                    }}
+                  >
+                    <Edit2 className="w-5 h-5" />
+                    <span>{isDrawing ? 'Drawing Mode ON' : 'Draw / Annotate'}</span>
+                  </button>
 
-                            {task.notes && (
-                              <div>
-                                <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#9B6B6E' }}>
-                                  Notes
-                                </div>
-                                <p className="text-sm font-medium" style={{ color: '#6B6B6B', lineHeight: '1.6' }}>
-                                  {task.notes}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Subtasks */}
-                            <div>
-                              <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#9B6B6E' }}>
-                                Subtasks
-                              </div>
-                              {task.subtasks && task.subtasks.length > 0 && (
-                                <div className="space-y-2 mb-2">
-                                  {task.subtasks.map(subtask => (
-                                    <div key={subtask.id} className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => toggleSubtask(task.id, subtask.id)}
-                                        className="flex-shrink-0"
-                                      >
-                                        {subtask.completed ? (
-                                          <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: categories[task.category].color }}>
-                                            <Check className="w-3 h-3 text-white" />
-                                          </div>
-                                        ) : (
-                                          <div className="w-4 h-4 rounded border-2" style={{ borderColor: categories[task.category].color }} />
-                                        )}
-                                      </button>
-                                      <span className={`text-sm font-medium ${subtask.completed ? 'line-through opacity-50' : ''}`} style={{ color: '#6B6B6B' }}>
-                                        {subtask.text}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={newSubtask}
-                                  onChange={(e) => setNewSubtask(e.target.value)}
-                                  onKeyPress={(e) => e.key === 'Enter' && addSubtask(task.id)}
-                                  placeholder="Add a subtask..."
-                                  className="flex-1 p-2 text-sm border-2 rounded-lg focus:outline-none focus:border-gray-400 font-medium"
-                                  style={{ borderColor: '#E8E8E8' }}
-                                />
-                                <button
-                                  onClick={() => addSubtask(task.id)}
-                                  className="px-3 py-2 rounded-lg border-2"
-                                  style={{ borderColor: '#E8E8E8', color: '#6B6B6B' }}
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                            
-                            {/* Action Buttons */}
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                onClick={() => toggleTask(task.id)}
-                                className="flex-1 py-2 px-3 rounded-lg border-2 transition-all hover:bg-gray-50 flex items-center justify-center gap-2 text-sm font-semibold"
-                                style={{ borderColor: '#E8E8E8', color: '#6B6B6B' }}
-                              >
-                                <Check className="w-4 h-4" />
-                                <span>Complete</span>
-                              </button>
-                              <button
-                                onClick={() => deleteTask(task.id)}
-                                className="py-2 px-3 rounded-lg border-2 transition-all hover:bg-red-50 flex items-center gap-2 text-sm font-semibold"
-                                style={{ borderColor: '#E8E8E8', color: '#D88B8B' }}
-                              >
-                                <X className="w-4 h-4" />
-                                <span>Delete</span>
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                  {isDrawing && (
+                    <>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2" style={{ borderColor: '#E8E8E8' }}>
+                        <Palette className="w-5 h-5" style={{ color: '#6B6B6B' }} />
+                        {['#9B6B6E', '#E8B4B8', '#D4A5A5', '#B4C7D4', '#2C2C2C'].map(color => (
+                          <button
+                            key={color}
+                            onClick={() => setDrawingColor(color)}
+                            className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
+                            style={{ 
+                              backgroundColor: color,
+                              borderColor: drawingColor === color ? '#2C2C2C' : 'transparent',
+                              borderWidth: drawingColor === color ? '3px' : '2px'
+                            }}
+                          />
+                        ))}
                       </div>
-                    );
-                  })}
+                      
+                      <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2" style={{ borderColor: '#E8E8E8' }}>
+                        <Minus className="w-5 h-5" style={{ color: '#6B6B6B' }} />
+                        <input
+                          type="range"
+                          min="1"
+                          max="8"
+                          value={lineWidth}
+                          onChange={(e) => setLineWidth(e.target.value)}
+                          className="w-24"
+                        />
+                      </div>
 
-                  {quadrantTasks.length === 0 && (
-                    <div className="text-center py-8 text-sm font-medium" style={{ color: '#D0D0D0' }}>
-                      No tasks in this quadrant
-                    </div>
+                      <button
+                        onClick={clearCanvas}
+                        className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50"
+                        style={{ borderColor: '#E8E8E8', color: '#6B6B6B' }}
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                        <span>Clear</span>
+                      </button>
+                    </>
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
 
-        {/* Completed Tasks */}
-        {tasks.filter(t => t.completed).length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-gray-300" />
-              <span className="text-sm font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: '#9B6B6E' }}>
-                <Star className="w-4 h-4" />
-                Completed
-              </span>
-              <div className="h-px flex-1 bg-gray-300" />
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {tasks.filter(t => t.completed).map(task => {
-                const CategoryIcon = categories[task.category].icon;
-                return (
-                  <div
-                    key={task.id}
-                    className="bg-white border-2 rounded-lg p-3 flex items-center gap-2 opacity-60"
-                    style={{ borderColor: '#E8E8E8' }}
-                  >
-                    <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: categories[task.category].color }}>
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <CategoryIcon className="w-3 h-3 flex-shrink-0" style={{ color: '#9B9B9B' }} />
-                    <span className="line-through text-sm font-medium truncate" style={{ color: '#9B9B9B' }}>
-                      {task.title}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Add Task Modal */}
-        {showAddTask && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50" onClick={() => setShowAddTask(false)}>
-            <div 
-              className="bg-white rounded-xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-              style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl" style={{
-                  fontFamily: "'Bodoni Moda', serif",
-                  color: '#2C2C2C'
-                }}>
-                  New Task
-                </h2>
-                <button 
-                  onClick={() => setShowAddTask(false)}
-                  className="p-2 rounded-full hover:bg-gray-100"
-                >
-                  <X className="w-6 h-6" style={{ color: '#6B6B6B' }} />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="block mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: '#9B6B6E' }}>
-                    Task Title
-                  </label>
-                  <input
-                    type="text"
-                    value={newTask.title}
-                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                    className="w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400 font-medium"
-                    style={{ borderColor: '#E8E8E8' }}
-                    placeholder="What needs to be done?"
-                  />
-                </div>
-
-                <div>
-                  <label className="block mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: '#9B6B6E' }}>
-                    Priority Quadrant
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {Object.entries(quadrants).map(([key, quad]) => (
-                      <button
+                <div className="grid grid-cols-2 gap-6 mb-8">
+                  {Object.entries(quadrants).map(([key, quadrant]) => {
+                    const quadrantTasks = getTasksByQuadrant(key);
+                    
+                    return (
+                      <div 
                         key={key}
-                        onClick={() => setNewTask({...newTask, priority: quad.priority})}
-                        className="p-4 rounded-lg text-left transition-all border-2"
-                        style={{
-                          backgroundColor: newTask.priority === quad.priority ? quad.color + '20' : 'white',
-                          borderColor: newTask.priority === quad.priority ? quad.color : '#E8E8E8'
-                        }}
+                        className="bg-white rounded-xl border-2 p-6 min-h-[400px]"
+                        style={{ borderColor: quadrant.color }}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xl">{quad.icon}</span>
-                          <span className="font-bold" style={{ color: '#2C2C2C' }}>{quad.title}</span>
+                        <div className="mb-4 pb-3 border-b-2" style={{ borderColor: quadrant.color }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-2xl">{quadrant.icon}</span>
+                            <h2 className="text-2xl font-normal tracking-wide" style={{
+                              fontFamily: "'Bodoni Moda', serif",
+                              color: '#2C2C2C'
+                            }}>
+                              {quadrant.title}
+                            </h2>
+                          </div>
+                          <p className="text-sm font-semibold" style={{ color: quadrant.color }}>
+                            {quadrant.subtitle}
+                          </p>
                         </div>
-                        <p className="text-xs font-semibold" style={{ color: '#6B6B6B' }}>
-                          {quad.subtitle}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: '#9B6B6E' }}>
-                    Category
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(categories).map(([catName, catData]) => {
-                      const Icon = catData.icon;
-                      return (
-                        <button
-                          key={catName}
-                          onClick={() => setNewTask({...newTask, category: catName})}
-                          className="p-3 rounded-lg text-sm transition-all border-2 flex items-center gap-2 font-semibold"
-                          style={{
-                            backgroundColor: newTask.category === catName ? catData.color : 'white',
-                            borderColor: newTask.category === catName ? catData.color : '#E8E8E8',
-                            color: '#2C2C2C'
-                          }}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span className="text-xs">{catName}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                        <div className="space-y-3">
+                          {quadrantTasks.map(task => {
+                            const CategoryIcon = categories[task.category].icon;
+                            const isExpanded = expandedTask === task.id;
+                            
+                            return (
+                              <div
+                                key={task.id}
+                                className="border-2 rounded-lg transition-all hover:shadow-md"
+                                style={{ 
+                                  borderColor: isExpanded ? categories[task.category].color : '#E8E8E8',
+                                  backgroundColor: isExpanded ? '#FAFAF8' : 'white'
+                                }}
+                              >
+                                <div 
+                                  className="p-4 cursor-pointer"
+                                  onClick={() => setExpandedTask(isExpanded ? null : task.id)}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleTask(task.id);
+                                      }}
+                                      className="flex-shrink-0 mt-1"
+                                    >
+                                      {task.completed ? (
+                                        <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: categories[task.category].color }}>
+                                          <Check className="w-3 h-3 text-white font-bold" />
+                                        </div>
+                                      ) : (
+                                        <Circle className="w-5 h-5" style={{ color: categories[task.category].color, strokeWidth: 2.5 }} />
+                                      )}
+                                    </button>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="text-base font-semibold mb-1" style={{ color: '#2C2C2C' }}>
+                                        {task.title}
+                                      </h3>
+                                      
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <CategoryIcon className="w-3 h-3" style={{ color: categories[task.category].color }} />
+                                        <span className="font-medium" style={{ color: '#6B6B6B' }}>
+                                          {task.category}
+                                        </span>
+                                        {task.timeEstimate && (
+                                          <>
+                                            <span style={{ color: '#D0D0D0' }}>•</span>
+                                            <span className="font-medium" style={{ color: '#6B6B6B' }}>
+                                              {task.timeEstimate}m
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    
+                                    <ChevronRight 
+                                      className="w-5 h-5 transition-transform flex-shrink-0"
+                                      style={{ 
+                                        color: '#9B6B6E',
+                                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                                      }}
+                                    />
+                                  </div>
+                                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: '#9B6B6E' }}>
-                      Due Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newTask.dueDate}
-                      onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
-                      className="w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400 font-medium"
-                      style={{ borderColor: '#E8E8E8' }}
-                    />
-                  </div>
+                                {isExpanded && (
+                                  <div className="px-4 pb-4 pt-2 border-t-2 space-y-3" style={{ borderColor: '#F5F5F5' }}>
+                                    {task.dueDate && (
+                                      <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#9B6B6E' }}>
+                                          Due Date
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm font-medium" style={{ color: '#6B6B6B' }}>
+                                          <Calendar className="w-4 h-4" />
+                                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                        </div>
+                                      </div>
+                                    )}
 
-                  <div>
-                    <label className="block mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: '#9B6B6E' }}>
-                      Time (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      value={newTask.timeEstimate}
-                      onChange={(e) => setNewTask({...newTask, timeEstimate: parseInt(e.target.value)})}
-                      className="w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400 font-semibold"
-                      style={{ borderColor: '#E8E8E8' }}
-                      min="5"
-                      step="5"
-                    />
-                  </div>
-                </div>
+                                    {task.notes && (
+                                      <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#9B6B6E' }}>
+                                          Notes
+                                        </div>
+                                        <p className="text-sm font-medium" style={{ color: '#6B6B6B', lineHeight: '1.6' }}>
+                                          {task.notes}
+                                        </p>
+                                      </div>
+                                    )}
 
-                <div>
-                  <label className="block mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: '#9B6B6E' }}>
-                    Notes
-                  </label>
-                  <textarea
-                    value={newTask.notes}
-                    onChange={(e) => setNewTask({...newTask, notes: e.target.value})}
-                    className="w-full p-3 border-2 rounded-lg h-24 resize-none focus:outline-none focus:border-gray-400 font-medium"
-                    style={{ borderColor: '#E8E8E8' }}
-                    placeholder="Any additional details..."
-                  />
-                </div>
-
-                <button
-                  onClick={addTask}
-                  className="w-full py-4 rounded-lg transition-all hover:shadow-lg text-white text-lg flex items-center justify-center gap-2 font-semibold"
-                  style={{ backgroundColor: '#9B6B6E' }}
-                >
-                  <Plus className="w-5 h-5" />
-                  <span>Create Task</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default ElegantTaskManager;
+                                    <div>
+                                      <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#9B6B6E' }}>
+                                        Subtasks
+                                      </div>
+                                      {task.subtasks && task.subtasks.length > 0 && (<div className="space-y-2 mb-2">
+                                      {task.subtasks.map(subtask => (
+                                        <div key={subtask.id} className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => toggleSubtask(task.id, subtask.id)}
+                                            className="flex-shrink-0"
+                                          >
+                                            {subtask.completed ? (
+                                              <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: categories[task.category].color }}>
+                                                <Check className="w-3 h-3 text-white" />
+                                              </div>
+                                            ) : (
+                                              <div className="w-4 h-4 rounded border-2" style={{ borderColor: categories[task.category].color }} />
+                                            )}
+                                          </button>
+                                          <span className={`text-sm font-medium ${subtask.completed ? 'line-through opacity-50' : ''}`} style={{ color: '#6B6B6B' }}>
+                                            {subtask.text}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={newSubtask}
+                                      onChange={(e) => setNewSubtask(e.target.value)}
+                                      onKeyPress={(e) => e.key === 'Enter' && addSubtask(task.id)}
+                                      placeholder="Add a subtask..."
+                                      className="flex-1 p-2 text-sm border-2 rounded-lg focus:outline-none focus:border-gray-400 font-medium"
+                                      style={{ borderColor: '#E8E8E8' }}
+                                    />
+                                    <button
+                                      onClick={() => addSubtask(task.id)}
+                                      className="px-3 py-2 rounded-lg border-2"
+                                      style={{ borderColor: '#E8E8E8', color: '#6B6B6B' }}
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
