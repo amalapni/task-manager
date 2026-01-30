@@ -779,3 +779,72 @@
                                       </span>
                                       {!!task.timeEstimate && (
                                         <>
+                                          <span style={{ color: "#D0D0D0" }}>•</span>
+                                          <span className="font-medium" style={{ color: "#6B6B6B" }}>
+                                            {task.timeEstimate}m
+                                          </span>
+                                        </>
+                                      )}
+                                      {task.carriedFrom && (
+                                        <>
+                                          <span style={{ color: "#D0D0D0" }}>•</span>
+                                          <span className="font-medium" style={{ color: "#9B6B6E" }}>
+                                            carried from {task.carriedFrom}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <ChevronRight
+                                    className="w-5 h-5 transition-transform flex-shrink-0"
+                                    style={{ color: "#9B6B6E", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+                                  />
+                                </div>
+                              </div>
+
+                              {isExpanded && (
+                                <div className="px-4 pb-4 pt-2 border-t-2 space-y-3" style={{ borderColor: "#F5F5F5" }}>
+                                  {task.dueDate && (
+                                    <div>
+                                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
+                                        Due Date
+                                      </div>
+                                      <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "#6B6B6B" }}>
+                                        <Calendar className="w-4 h-4" />
+                                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {task.notes && (
+                                    <div>
+                                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
+                                        Notes
+                                      </div>
+                                      <p className="text-sm font-medium" style={{ color: "#6B6B6B", lineHeight: "1.6" }}>
+                                        {task.notes}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "#9B6B6E" }}>
+                                      Subtasks
+                                    </div>
+
+                                    {task.subtasks && task.subtasks.length > 0 && (
+                                      <div className="space-y-2 mb-2">
+                                        {task.subtasks.map((subtask) => (
+                                          <div key={subtask.id} className="flex items-center gap-2">
+                                            <button onClick={() => toggleSubtask(task.id, subtask.id)} className="flex-shrink-0" aria-label="Toggle subtask">
+                                              {subtask.completed ? (
+                                                <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: cat.color }}>
+                                                  <Check className="w-3 h-3 text-white" />
+                                                </div>
+                                              ) : (
+                                                <div className="w-4 h-4 rounded border-2" style={{ borderColor: cat.color }} />
+                                              )}
+                                            </button>
+
+                                            <span className={`text-sm font-medium ${subtask.completed ? "line-through opacity-
