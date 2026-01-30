@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Daily Task Manager - Eisenhower Matrix</title>
 
     <!-- React 18 UMD -->
@@ -27,6 +27,8 @@
         -moz-osx-font-smoothing: grayscale;
         background: #fafaf8;
       }
+
+      /* Prevents mobile scroll/zoom gestures from breaking drawing */
       canvas.drawing-canvas {
         touch-action: none;
       }
@@ -504,8 +506,9 @@
           if (!canvas) return;
 
           const dpr = window.devicePixelRatio || 1;
-          const w = window.innerWidth;
-          const h = window.innerHeight;
+          const vv = window.visualViewport;
+          const w = vv?.width || window.innerWidth;
+          const h = vv?.height || window.innerHeight;
 
           canvas.width = Math.floor(w * dpr);
           canvas.height = Math.floor(h * dpr);
@@ -521,21 +524,27 @@
           redrawAllStrokes();
         };
 
+        // Keep canvas sized correctly for iPad Safari (visualViewport) + rotation changes
         useEffect(() => {
-          const onResize = () => isDrawingMode && resizeCanvas();
+          const onResize = () => resizeCanvas();
           window.addEventListener("resize", onResize);
-          return () => window.removeEventListener("resize", onResize);
-        }, [isDrawingMode]);
+          window.addEventListener("orientationchange", onResize);
+          const vv = window.visualViewport;
+          vv?.addEventListener("resize", onResize);
 
-        useEffect(() => {
-          if (!isDrawingMode) return;
+          // initial
           requestAnimationFrame(resizeCanvas);
-        }, [isDrawingMode, selectedDate]);
+
+          return () => {
+            window.removeEventListener("resize", onResize);
+            window.removeEventListener("orientationchange", onResize);
+            vv?.removeEventListener("resize", onResize);
+          };
+        }, [selectedDate]);
 
         useEffect(() => {
-          if (!isDrawingMode) return;
           requestAnimationFrame(redrawAllStrokes);
-        }, [drawByDay, selectedDate, isDrawingMode]);
+        }, [drawByDay, selectedDate]);
 
         const getPointFromEvent = (e) => {
           const canvas = canvasRef.current;
@@ -578,6 +587,7 @@
           const pts = stroke.points;
           pts.push(p);
 
+          // incremental draw
           if (pts.length >= 2) {
             ctx.strokeStyle = stroke.color;
             ctx.lineWidth = stroke.width;
@@ -745,82 +755,89 @@
 
         return (
           <div className="min-h-screen" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
-            {/* Canvas overlay ONLY when drawing is on */}
+            {/* Always-visible canvas so drawings persist on screen */}
+            <div
+              className="fixed inset-0"
+              style={{
+                zIndex: isDrawingMode ? 60 : 1,
+                pointerEvents: isDrawingMode ? "auto" : "none",
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                className="drawing-canvas absolute inset-0"
+                style={{ cursor: isDrawingMode ? "crosshair" : "default" }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
+              />
+            </div>
+
+            {/* Drawing toolbar only when drawing is on */}
             {isDrawingMode && (
-              <>
-                <div className="fixed inset-0 z-50">
-                  <canvas
-                    ref={canvasRef}
-                    className="drawing-canvas absolute inset-0 cursor-crosshair"
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onPointerCancel={onPointerCancel}
-                  />
+              <div
+                className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white border-2 rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3 flex-wrap justify-center"
+                style={{ zIndex: 70, borderColor: "#E8E8E8" }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
+                    Ink
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {["#9B6B6E", "#E8B4B8", "#D88B8B", "#B4C7D4", "#2C2C2C", "#FFFFFF"].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setDrawingColor(c)}
+                        className="w-7 h-7 rounded-full border-2"
+                        style={{
+                          backgroundColor: c,
+                          borderColor: drawingColor === c ? "#2C2C2C" : "#E8E8E8",
+                        }}
+                        aria-label={"Set color " + c}
+                        title={c === "#FFFFFF" ? "Eraser-ish (white)" : c}
+                      />
+                    ))}
+                  </div>
                 </div>
 
-                {/* Drawing toolbar */}
-                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] bg-white border-2 rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3 flex-wrap justify-center"
-                     style={{ borderColor: "#E8E8E8" }}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>Ink</span>
-                    <div className="flex items-center gap-1">
-                      {["#9B6B6E","#E8B4B8","#D88B8B","#B4C7D4","#2C2C2C","#FFFFFF"].map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setDrawingColor(c)}
-                          className="w-7 h-7 rounded-full border-2"
-                          style={{
-                            backgroundColor: c,
-                            borderColor: drawingColor === c ? "#2C2C2C" : "#E8E8E8",
-                          }}
-                          aria-label={"Set color " + c}
-                          title={c === "#FFFFFF" ? "Eraser-ish (white)" : c}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>Size</span>
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      value={lineWidth}
-                      onChange={(e) => setLineWidth(Number(e.target.value))}
-                    />
-                    <span className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>{lineWidth}</span>
-                  </div>
-
-                  <button
-                    onClick={undoStroke}
-                    className="px-3 py-2 rounded-lg border-2 font-semibold flex items-center gap-2"
-                    style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                  >
-                    <UndoIcon className="w-4 h-4" /> Undo
-                  </button>
-
-                  <button
-                    onClick={clearDrawing}
-                    className="px-3 py-2 rounded-lg border-2 font-semibold flex items-center gap-2"
-                    style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                  >
-                    <RotateCcw className="w-4 h-4" /> Clear
-                  </button>
-
-                  <button
-                    onClick={() => setIsDrawingMode(false)}
-                    className="px-4 py-2 rounded-lg font-semibold shadow-sm"
-                    style={{ backgroundColor: "#9B6B6E", color: "white" }}
-                  >
-                    Exit Drawing
-                  </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
+                    Size
+                  </span>
+                  <input type="range" min="1" max="10" value={lineWidth} onChange={(e) => setLineWidth(Number(e.target.value))} />
+                  <span className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
+                    {lineWidth}
+                  </span>
                 </div>
-              </>
+
+                <button
+                  onClick={undoStroke}
+                  className="px-3 py-2 rounded-lg border-2 font-semibold flex items-center gap-2"
+                  style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
+                >
+                  <UndoIcon className="w-4 h-4" /> Undo
+                </button>
+
+                <button
+                  onClick={clearDrawing}
+                  className="px-3 py-2 rounded-lg border-2 font-semibold flex items-center gap-2"
+                  style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
+                >
+                  <RotateCcw className="w-4 h-4" /> Clear
+                </button>
+
+                <button
+                  onClick={() => setIsDrawingMode(false)}
+                  className="px-4 py-2 rounded-lg font-semibold shadow-sm"
+                  style={{ backgroundColor: "#9B6B6E", color: "white" }}
+                >
+                  Exit Drawing
+                </button>
+              </div>
             )}
 
-            <div className="max-w-7xl mx-auto px-6 py-8 relative">
+            <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
               {/* Header */}
               <div className="text-center mb-6">
                 <h1
@@ -894,7 +911,7 @@
               </div>
 
               {/* Controls */}
-              <div className="flex justify-center gap-3 mb-8 flex-wrap relative z-10">
+              <div className="flex justify-center gap-3 mb-8 flex-wrap">
                 <button
                   onClick={() => setShowAddTask(true)}
                   className="px-6 py-3 bg-white border-2 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
@@ -915,7 +932,6 @@
 
                 <button
                   onClick={() => {
-                    // soft reset for the day only (tasks + drawing)
                     if (!confirm("Reset this day? This clears today's tasks + drawings only.")) return;
                     setTasksByDay((prev) => ({ ...prev, [selectedDate]: { tasks: [] } }));
                     setDrawByDay((prev) => ({ ...prev, [selectedDate]: { strokes: [] } }));
@@ -998,7 +1014,6 @@
                   {completedTasks.length > 0 ? (
                     <button
                       onClick={() => {
-                        // archive-like: remove completed from the day
                         setTasksByDay((prev) => {
                           const day = prev[selectedDate];
                           if (!day) return prev;
@@ -1081,9 +1096,7 @@
                           autoFocus
                           value={newTask.title}
                           onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") addTask();
-                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
                           placeholder="e.g., Finish the outline, book the appointment, answer Slack…"
                           className="mt-2 w-full p-3 border-2 rounded-lg font-medium focus:outline-none"
                           style={{ borderColor: "#E8E8E8" }}
@@ -1127,7 +1140,7 @@
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
+                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6BE" }}>
                             Due Date (optional)
                           </label>
                           <input
