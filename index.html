@@ -1,850 +1,1629 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Daily Task Manager - Eisenhower Matrix</title>
-
-    <!-- React 18 UMD -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-    <!-- Babel for JSX-in-browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Fonts -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600&family=Bodoni+Moda:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-
-    <style>
-      body {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div id="root"></div>
-
-    <script type="text/babel">
-      const { useEffect, useMemo, useRef, useState } = React;
-
-      // ---------- Icons (inline SVG) ----------
-      const Calendar = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-      );
-      const ChevronRight = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      );
-      const X = ({ className }) => (
-        <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      );
-      const Plus = ({ className }) => (
-        <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      );
-      const Check = ({ className }) => (
-        <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      );
-      const Circle = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <circle cx="12" cy="12" r="10" />
-        </svg>
-      );
-      const Zap = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-        </svg>
-      );
-      const Coffee = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
-          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
-          <line x1="6" y1="1" x2="6" y2="4" />
-          <line x1="10" y1="1" x2="10" y2="4" />
-          <line x1="14" y1="1" x2="14" y2="4" />
-        </svg>
-      );
-      const Brain = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" />
-          <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />
-        </svg>
-      );
-      const Dumbbell = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="m6.5 6.5 11 11" />
-          <path d="m21 21-1-1" />
-          <path d="m3 3 1 1" />
-          <path d="m18 22 4-4" />
-          <path d="m2 6 4-4" />
-          <path d="m3 10 7-7" />
-          <path d="m14 21 7-7" />
-        </svg>
-      );
-      const Palette = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="13.5" cy="6.5" r=".5" />
-          <circle cx="17.5" cy="10.5" r=".5" />
-          <circle cx="8.5" cy="7.5" r=".5" />
-          <circle cx="6.5" cy="12.5" r=".5" />
-          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-        </svg>
-      );
-      const FileText = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="16" y1="13" x2="8" y2="13" />
-          <line x1="16" y1="17" x2="8" y2="17" />
-          <line x1="10" y1="9" x2="8" y2="9" />
-        </svg>
-      );
-      const Heart = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-        </svg>
-      );
-      const Sparkles = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-          <path d="M5 3v4" />
-          <path d="M19 17v4" />
-          <path d="M3 5h4" />
-          <path d="M17 19h4" />
-        </svg>
-      );
-      const Smile = ({ className, style }) => (
-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-          <line x1="9" y1="9" x2="9.01" y2="9" />
-          <line x1="15" y1="9" x2="15.01" y2="9" />
-        </svg>
-      );
-      const Edit2 = ({ className }) => (
-        <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-        </svg>
-      );
-      const RotateCcw = ({ className }) => (
-        <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="1 4 1 10 7 10" />
-          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-        </svg>
-      );
-
-      // ---------- Helpers ----------
-      const pad2 = (n) => String(n).padStart(2, "0");
-      const toISODate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-      const fromISODate = (s) => {
-        const [y, m, d] = s.split("-").map(Number);
-        return new Date(y, m - 1, d);
-      };
-      const addDays = (date, delta) => {
-        const d = new Date(date);
-        d.setDate(d.getDate() + delta);
-        return d;
-      };
-      const safeParse = (raw, fallback) => {
-        try {
-          return raw ? JSON.parse(raw) : fallback;
-        } catch {
-          return fallback;
-        }
-      };
-
-      // ---------- Drawing model ----------
-      // stroke = { id, color, width, points: [{x,y}, ...] }
-      const drawAllStrokes = (ctx, strokes) => {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        for (const stroke of strokes) {
-          if (!stroke.points || stroke.points.length < 2) continue;
-          ctx.beginPath();
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          ctx.strokeStyle = stroke.color;
-          ctx.lineWidth = stroke.width;
-
-          ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-          for (let i = 1; i < stroke.points.length; i++) {
-            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-          }
-          ctx.stroke();
-        }
-      };
-
-      function ElegantTaskManager() {
-        // ----- Date / “yearly” navigation -----
-        const [activeDate, setActiveDate] = useState(toISODate(new Date()));
-
-        // Storage keys
-        const TASKS_KEY = "eisenhower_tasks_by_date_v1";
-        const STROKES_KEY = "eisenhower_strokes_by_date_v1";
-
-        // tasksByDate: { "YYYY-MM-DD": Task[] }
-        const [tasksByDate, setTasksByDate] = useState({});
-        // strokesByDate: { "YYYY-MM-DD": Stroke[] }
-        const [strokesByDate, setStrokesByDate] = useState({});
-
-        // Load on mount
-        useEffect(() => {
-          setTasksByDate(safeParse(localStorage.getItem(TASKS_KEY), {}));
-          setStrokesByDate(safeParse(localStorage.getItem(STROKES_KEY), {}));
-        }, []);
-
-        // Persist
-        useEffect(() => {
-          localStorage.setItem(TASKS_KEY, JSON.stringify(tasksByDate));
-        }, [tasksByDate]);
-
-        useEffect(() => {
-          localStorage.setItem(STROKES_KEY, JSON.stringify(strokesByDate));
-        }, [strokesByDate]);
-
-        // Carry-over unfinished tasks when visiting a date with no tasks yet
-        useEffect(() => {
-          const todaysTasks = tasksByDate[activeDate];
-          if (todaysTasks && todaysTasks.length > 0) return;
-
-          // Find previous day with tasks
-          const prevDate = toISODate(addDays(fromISODate(activeDate), -1));
-          const prevTasks = tasksByDate[prevDate];
-          if (!prevTasks || prevTasks.length === 0) return;
-
-          const carry = prevTasks
-            .filter((t) => !t.completed)
-            .map((t) => ({
-              ...t,
-              id: Date.now() + Math.random(),
-              completed: false,
-              carriedFrom: prevDate,
-            }));
-
-          if (carry.length === 0) return;
-
-          setTasksByDate((prev) => ({
-            ...prev,
-            [activeDate]: carry,
-          }));
-        }, [activeDate, tasksByDate]);
-
-        const tasks = tasksByDate[activeDate] || [];
-        const setTasksForActiveDate = (nextTasks) => {
-          setTasksByDate((prev) => ({ ...prev, [activeDate]: nextTasks }));
-        };
-
-        // ---------- Categories / Quadrants ----------
-        const categories = useMemo(
-          () => ({
-            "Quick Wins": { icon: Zap, color: "#E8B4B8" },
-            "Deep Focus": { icon: Brain, color: "#9B6B6E" },
-            "Body Doubling": { icon: Coffee, color: "#D4A5A5" },
-            "Movement Break": { icon: Dumbbell, color: "#B4C7D4" },
-            "Creative Flow": { icon: Palette, color: "#E8D4B8" },
-            "Admin Stuff": { icon: FileText, color: "#B8B8B8" },
-            "Self Care": { icon: Heart, color: "#D4E8B8" },
-            "Dopamine Hits": { icon: Sparkles, color: "#FFD4E5" },
-            "Later Maybe": { icon: Smile, color: "#E8E8E8" },
-          }),
-          []
-        );
-
-        const quadrants = useMemo(
-          () => ({
-            "urgent-important": { title: "Do First", subtitle: "Urgent & Important", priority: "high", color: "#D88B8B", icon: "🔴" },
-            "not-urgent-important": { title: "Schedule", subtitle: "Important, Not Urgent", priority: "medium", color: "#E8B4B8", icon: "🟡" },
-            "urgent-not-important": { title: "Delegate", subtitle: "Urgent, Not Important", priority: "low", color: "#B4C7D4", icon: "🟢" },
-            "not-urgent-not-important": { title: "Later", subtitle: "Neither Urgent nor Important", priority: "later", color: "#E8E8E8", icon: "⚪" },
-          }),
-          []
-        );
-
-        const getTasksByQuadrant = (quadrantKey) => {
-          const q = quadrants[quadrantKey];
-          return tasks.filter((t) => !t.completed && t.priority === q.priority);
-        };
-
-        // ---------- Task UI state ----------
-        const [expandedTask, setExpandedTask] = useState(null);
-        const [showAddTask, setShowAddTask] = useState(false);
-        const [newTask, setNewTask] = useState({
-          title: "",
-          category: "Quick Wins",
-          priority: "medium",
-          dueDate: "",
-          notes: "",
-          timeEstimate: 25,
-        });
-        const [newSubtaskText, setNewSubtaskText] = useState("");
-
-        const addTask = () => {
-          if (!newTask.title.trim()) return;
-          const task = {
-            id: Date.now(),
-            title: newTask.title.trim(),
-            category: newTask.category,
-            priority: newTask.priority,
-            dueDate: newTask.dueDate,
-            notes: newTask.notes,
-            timeEstimate: Number(newTask.timeEstimate) || 0,
-            completed: false,
-            subtasks: [],
-          };
-          setTasksForActiveDate([task, ...tasks]);
-          setNewTask({ title: "", category: "Quick Wins", priority: "medium", dueDate: "", notes: "", timeEstimate: 25 });
-          setShowAddTask(false);
-        };
-
-        const toggleTask = (id) => {
-          setTasksForActiveDate(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
-        };
-
-        const deleteTask = (id) => {
-          setTasksForActiveDate(tasks.filter((t) => t.id !== id));
-          setExpandedTask(null);
-        };
-
-        const addSubtask = (taskId) => {
-          const text = newSubtaskText.trim();
-          if (!text) return;
-          setTasksForActiveDate(
-            tasks.map((t) =>
-              t.id === taskId
-                ? { ...t, subtasks: [...(t.subtasks || []), { id: Date.now(), text, completed: false }] }
-                : t
-            )
-          );
-          setNewSubtaskText("");
-        };
-
-        const toggleSubtask = (taskId, subtaskId) => {
-          setTasksForActiveDate(
-            tasks.map((t) => {
-              if (t.id !== taskId) return t;
-              return {
-                ...t,
-                subtasks: (t.subtasks || []).map((st) => (st.id === subtaskId ? { ...st, completed: !st.completed } : st)),
-              };
-            })
-          );
-        };
-
-        // ---------- Drawing state ----------
-        const [isDrawingMode, setIsDrawingMode] = useState(false);
-        const [drawingColor, setDrawingColor] = useState("#9B6B6E");
-        const [lineWidth, setLineWidth] = useState(3);
-
-        const inkCanvasRef = useRef(null);   // always-visible, non-interactive layer
-        const drawCanvasRef = useRef(null);  // interactive while drawing
-        const activeStrokeRef = useRef(null);
-        const isStrokeActiveRef = useRef(false);
-
-        const strokes = strokesByDate[activeDate] || [];
-        const setStrokesForActiveDate = (nextStrokes) => {
-          setStrokesByDate((prev) => ({ ...prev, [activeDate]: nextStrokes }));
-        };
-
-        const resizeCanvasToViewport = (canvas) => {
-          if (!canvas) return;
-          // account for devicePixelRatio so lines aren't blurry on retina
-          const dpr = window.devicePixelRatio || 1;
-          canvas.width = Math.floor(window.innerWidth * dpr);
-          canvas.height = Math.floor(window.innerHeight * dpr);
-          canvas.style.width = window.innerWidth + "px";
-          canvas.style.height = window.innerHeight + "px";
-          const ctx = canvas.getContext("2d");
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixel space
-        };
-
-        // Keep the “ink layer” always drawn
-        useEffect(() => {
-          const ink = inkCanvasRef.current;
-          if (!ink) return;
-
-          const onResize = () => {
-            resizeCanvasToViewport(ink);
-            const ctx = ink.getContext("2d");
-            drawAllStrokes(ctx, strokes);
-          };
-
-          onResize();
-          window.addEventListener("resize", onResize);
-          return () => window.removeEventListener("resize", onResize);
-          // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [activeDate]);
-
-        // Repaint ink canvas whenever strokes change
-        useEffect(() => {
-          const ink = inkCanvasRef.current;
-          if (!ink) return;
-          const ctx = ink.getContext("2d");
-          drawAllStrokes(ctx, strokes);
-        }, [strokes]);
-
-        // Setup interactive draw canvas when toggling drawing mode
-        useEffect(() => {
-          const drawCanvas = drawCanvasRef.current;
-          if (!drawCanvas) return;
-
-          if (!isDrawingMode) return;
-
-          resizeCanvasToViewport(drawCanvas);
-
-          // When entering draw mode, start from the existing strokes so you can keep drawing seamlessly
-          const ctx = drawCanvas.getContext("2d");
-          drawAllStrokes(ctx, strokes);
-
-          const onResize = () => {
-            resizeCanvasToViewport(drawCanvas);
-            drawAllStrokes(drawCanvas.getContext("2d"), strokes);
-          };
-
-          window.addEventListener("resize", onResize);
-          return () => window.removeEventListener("resize", onResize);
-        }, [isDrawingMode, strokes]);
-
-        const toggleDrawingMode = () => {
-          // When exiting draw mode, merge whatever is on drawCanvas into strokes already (strokes are source of truth)
-          setIsDrawingMode((v) => !v);
-          // Safety: end any active stroke
-          isStrokeActiveRef.current = false;
-          activeStrokeRef.current = null;
-        };
-
-        const getPointFromEvent = (e, canvas) => {
-          const rect = canvas.getBoundingClientRect();
-          const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
-          const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
-          return { x: clientX - rect.left, y: clientY - rect.top };
-        };
-
-        const onPointerDown = (e) => {
-          if (!isDrawingMode) return;
-          const canvas = drawCanvasRef.current;
-          if (!canvas) return;
-
-          // Capture the pointer so you can draw even if finger leaves canvas
-          canvas.setPointerCapture?.(e.pointerId);
-
-          isStrokeActiveRef.current = true;
-          const p = getPointFromEvent(e, canvas);
-          const stroke = {
-            id: Date.now() + Math.random(),
-            color: drawingColor,
-            width: lineWidth,
-            points: [p],
-          };
-          activeStrokeRef.current = stroke;
-
-          const ctx = canvas.getContext("2d");
-          ctx.beginPath();
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          ctx.strokeStyle = stroke.color;
-          ctx.lineWidth = stroke.width;
-          ctx.moveTo(p.x, p.y);
-        };
-
-        const onPointerMove = (e) => {
-          if (!isDrawingMode) return;
-          if (!isStrokeActiveRef.current) return;
-
-          const canvas = drawCanvasRef.current;
-          if (!canvas) return;
-
-          const stroke = activeStrokeRef.current;
-          if (!stroke) return;
-
-          const p = getPointFromEvent(e, canvas);
-          stroke.points.push(p);
-
-          const ctx = canvas.getContext("2d");
-          ctx.lineTo(p.x, p.y);
-          ctx.stroke();
-        };
-
-        const endStroke = () => {
-          if (!isDrawingMode) return;
-          if (!isStrokeActiveRef.current) return;
-
-          isStrokeActiveRef.current = false;
-
-          const stroke = activeStrokeRef.current;
-          activeStrokeRef.current = null;
-
-          if (stroke && stroke.points.length > 1) {
-            // Commit stroke to strokesByDate
-            setStrokesForActiveDate([...strokes, stroke]);
-          } else {
-            // If it's a tap with 1 point, make a tiny dot by duplicating the point
-            if (stroke && stroke.points.length === 1) {
-              const p = stroke.points[0];
-              stroke.points.push({ x: p.x + 0.01, y: p.y + 0.01 });
-              setStrokesForActiveDate([...strokes, stroke]);
-            }
-          }
-
-          // Reset interactive canvas to be faithful to strokes (prevents drift)
-          const canvas = drawCanvasRef.current;
-          if (canvas) {
-            drawAllStrokes(canvas.getContext("2d"), [...strokes, stroke].filter(Boolean));
-          }
-        };
-
-        const undoStroke = () => {
-          if (strokes.length === 0) return;
-          const next = strokes.slice(0, -1);
-          setStrokesForActiveDate(next);
-
-          // If in draw mode, redraw drawCanvas too
-          const drawCanvas = drawCanvasRef.current;
-          if (drawCanvas) drawAllStrokes(drawCanvas.getContext("2d"), next);
-        };
-
-        const clearDrawing = () => {
-          setStrokesForActiveDate([]);
-          const drawCanvas = drawCanvasRef.current;
-          if (drawCanvas) drawAllStrokes(drawCanvas.getContext("2d"), []);
-        };
-
-        // ---------- Date UI ----------
-        const prettyDate = useMemo(() => {
-          const d = fromISODate(activeDate);
-          return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-        }, [activeDate]);
-
-        const goPrevDay = () => setActiveDate(toISODate(addDays(fromISODate(activeDate), -1)));
-        const goNextDay = () => setActiveDate(toISODate(addDays(fromISODate(activeDate), 1)));
-
-        return (
-          <div
-            className="min-h-screen"
-            style={{
-              backgroundColor: "#FAFAF8",
-              fontFamily: "'Inter', -apple-system, sans-serif",
-            }}
-          >
-            {/* Always-visible INK layer (shows drawing even when drawing mode is off) */}
-            <canvas
-              ref={inkCanvasRef}
-              className="fixed inset-0 z-0"
-              style={{ pointerEvents: "none" }}
-              aria-hidden="true"
-            ></canvas>
-
-            {/* Interactive drawing layer (only when drawing mode ON) */}
-            {isDrawingMode && (
-              <>
-                <canvas
-                  ref={drawCanvasRef}
-                  className="fixed inset-0 z-40"
-                  style={{
-                    touchAction: "none",         // ✅ mobile-friendly (prevents scroll while drawing)
-                    background: "transparent",
-                  }}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={endStroke}
-                  onPointerCancel={endStroke}
-                  onPointerLeave={endStroke}
-                ></canvas>
-
-                {/* Emergency exit button */}
-                <button
-                  onClick={toggleDrawingMode}
-                  className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg font-semibold shadow-lg"
-                  style={{ backgroundColor: "#9B6B6E", color: "white" }}
-                >
-                  Exit Drawing
-                </button>
-              </>
-            )}
-
-            {/* Main UI */}
-            <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-              {/* Header */}
-              <div className="text-center mb-6">
-                <h1
-                  className="text-5xl mb-2 tracking-wide"
-                  style={{
-                    fontFamily: "'Bodoni Moda', 'Playfair Display', serif",
-                    color: "#2C2C2C",
-                    fontWeight: "400",
-                  }}
-                >
-                  Daily Tasks
-                </h1>
-
-                <div className="flex flex-wrap items-center justify-center gap-3 text-base font-medium" style={{ color: "#6B6B6B" }}>
-                  <span className="inline-flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>{prettyDate}</span>
-                  </span>
-
-                  {/* Date controls */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={goPrevDay}
-                      className="px-3 py-2 rounded-lg border-2 bg-white font-semibold hover:shadow-sm"
-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                      aria-label="Previous day"
-                    >
-                      ◀
-                    </button>
-
-                    <input
-                      type="date"
-                      value={activeDate}
-                      onChange={(e) => setActiveDate(e.target.value)}
-                      className="px-3 py-2 rounded-lg border-2 bg-white font-semibold"
-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                      aria-label="Pick a date"
-                    />
-
-                    <button
-                      onClick={goNextDay}
-                      className="px-3 py-2 rounded-lg border-2 bg-white font-semibold hover:shadow-sm"
-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                      aria-label="Next day"
-                    >
-                      ▶
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex justify-center gap-3 mb-8 flex-wrap">
-                <button
-                  onClick={() => setShowAddTask(true)}
-                  className="px-6 py-3 bg-white border-2 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
-                  style={{ borderColor: "#9B6B6E", color: "#9B6B6E" }}
-                >
-                  <Plus className="w-5 h-5" />
-                  <span>New Task</span>
-                </button>
-
-                <button
-                  onClick={toggleDrawingMode}
-                  className="px-6 py-3 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
-                  style={{
-                    backgroundColor: isDrawingMode ? "#9B6B6E" : "white",
-                    color: isDrawingMode ? "white" : "#9B6B6E",
-                    border: `2px solid ${isDrawingMode ? "#9B6B6E" : "#E8E8E8"}`,
-                  }}
-                >
-                  <Edit2 className="w-5 h-5" />
-                  <span>{isDrawingMode ? "Drawing Mode ON" : "Draw / Annotate"}</span>
-                </button>
-
-                {/* Drawing toolbar (works even when draw mode is off, because ink stays visible) */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border-2" style={{ borderColor: "#E8E8E8" }}>
-                  <Palette className="w-5 h-5" style={{ color: "#6B6B6B" }} />
-                  {["#9B6B6E", "#E8B4B8", "#D4A5A5", "#B4C7D4", "#2C2C2C"].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setDrawingColor(c)}
-                      className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
-                      style={{
-                        backgroundColor: c,
-                        borderColor: drawingColor === c ? "#2C2C2C" : "transparent",
-                        borderWidth: drawingColor === c ? "3px" : "2px",
-                      }}
-                      aria-label={`Set color ${c}`}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border-2" style={{ borderColor: "#E8E8E8" }}>
-                  <span className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
-                    Pen
-                  </span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={lineWidth}
-                    onChange={(e) => setLineWidth(Number(e.target.value))}
-                    className="w-28"
-                    aria-label="Line width"
-                  />
-                </div>
-
-                <button
-                  onClick={undoStroke}
-                  className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50"
-                  style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                >
-                  Undo
-                </button>
-
-                <button
-                  onClick={clearDrawing}
-                  className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50"
-                  style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                >
-                  <RotateCcw className="w-5 h-5" />
-                  <span>Clear</span>
-                </button>
-              </div>
-
-              {/* Eisenhower Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {Object.entries(quadrants).map(([key, quadrant]) => {
-                  const quadrantTasks = getTasksByQuadrant(key);
-                  return (
-                    <div key={key} className="bg-white rounded-xl border-2 p-6 min-h-[360px]" style={{ borderColor: quadrant.color }}>
-                      <div className="mb-4 pb-3 border-b-2" style={{ borderColor: quadrant.color }}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-2xl">{quadrant.icon}</span>
-                          <h2 className="text-2xl font-normal tracking-wide" style={{ fontFamily: "'Bodoni Moda', serif", color: "#2C2C2C" }}>
-                            {quadrant.title}
-                          </h2>
-                        </div>
-                        <p className="text-sm font-semibold" style={{ color: quadrant.color }}>
-                          {quadrant.subtitle}
-                        </p>
-                      </div>
-
-                      <div className="space-y-3">
-                        {quadrantTasks.length === 0 && (
-                          <div className="text-sm font-medium" style={{ color: "#9A9A9A" }}>
-                            No tasks here yet.
-                          </div>
-                        )}
-
-                        {quadrantTasks.map((task) => {
-                          const cat = categories[task.category] || categories["Quick Wins"];
-                          const CategoryIcon = cat.icon;
-                          const isExpanded = expandedTask === task.id;
-
-                          return (
-                            <div
-                              key={task.id}
-                              className="border-2 rounded-lg transition-all hover:shadow-md"
-                              style={{
-                                borderColor: isExpanded ? cat.color : "#E8E8E8",
-                                backgroundColor: isExpanded ? "#FAFAF8" : "white",
-                              }}
-                            >
-                              <div className="p-4 cursor-pointer" onClick={() => setExpandedTask(isExpanded ? null : task.id)}>
-                                <div className="flex items-start gap-3">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleTask(task.id);
-                                    }}
-                                    className="flex-shrink-0 mt-1"
-                                    aria-label="Toggle complete"
-                                  >
-                                    {task.completed ? (
-                                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.color }}>
-                                        <Check className="w-3 h-3 text-white font-bold" />
-                                      </div>
-                                    ) : (
-                                      <Circle className="w-5 h-5" style={{ color: cat.color, strokeWidth: 2.5 }} />
-                                    )}
-                                  </button>
-
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="text-base font-semibold mb-1" style={{ color: "#2C2C2C" }}>
-                                      {task.title}
-                                    </h3>
-
-                                    <div className="flex items-center gap-2 text-xs">
-                                      <CategoryIcon className="w-3 h-3" style={{ color: cat.color }} />
-                                      <span className="font-medium" style={{ color: "#6B6B6B" }}>
-                                        {task.category}
-                                      </span>
-                                      {!!task.timeEstimate && (
-                                        <>
-                                          <span style={{ color: "#D0D0D0" }}>•</span>
-                                          <span className="font-medium" style={{ color: "#6B6B6B" }}>
-                                            {task.timeEstimate}m
-                                          </span>
-                                        </>
-                                      )}
-                                      {task.carriedFrom && (
-                                        <>
-                                          <span style={{ color: "#D0D0D0" }}>•</span>
-                                          <span className="font-medium" style={{ color: "#9B6B6E" }}>
-                                            carried from {task.carriedFrom}
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <ChevronRight
-                                    className="w-5 h-5 transition-transform flex-shrink-0"
-                                    style={{ color: "#9B6B6E", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
-                                  />
-                                </div>
-                              </div>
-
-                              {isExpanded && (
-                                <div className="px-4 pb-4 pt-2 border-t-2 space-y-3" style={{ borderColor: "#F5F5F5" }}>
-                                  {task.dueDate && (
-                                    <div>
-                                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
-                                        Due Date
-                                      </div>
-                                      <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "#6B6B6B" }}>
-                                        <Calendar className="w-4 h-4" />
-                                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {task.notes && (
-                                    <div>
-                                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
-                                        Notes
-                                      </div>
-                                      <p className="text-sm font-medium" style={{ color: "#6B6B6B", lineHeight: "1.6" }}>
-                                        {task.notes}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  <div>
-                                    <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "#9B6B6E" }}>
-                                      Subtasks
-                                    </div>
-
-                                    {task.subtasks && task.subtasks.length > 0 && (
-                                      <div className="space-y-2 mb-2">
-                                        {task.subtasks.map((subtask) => (
-                                          <div key={subtask.id} className="flex items-center gap-2">
-                                            <button onClick={() => toggleSubtask(task.id, subtask.id)} className="flex-shrink-0" aria-label="Toggle subtask">
-                                              {subtask.completed ? (
-                                                <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: cat.color }}>
-                                                  <Check className="w-3 h-3 text-white" />
-                                                </div>
-                                              ) : (
-                                                <div className="w-4 h-4 rounded border-2" style={{ borderColor: cat.color }} />
-                                              )}
-                                            </button>
-
-                                            <span className={`text-sm font-medium ${subtask.completed ? "line-through opacity-
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/index.html b/index.html
+index ff32eb409dac4ee779eeb73aa56c79aacd48e02f..ab04ae8000f7084694f84bc8a65359364e604f86 100644
+--- a/index.html
++++ b/index.html
+@@ -3,127 +3,122 @@
+   <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>Daily Task Manager - Eisenhower Matrix</title>
+ 
+     <!-- React 18 UMD -->
+     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+ 
+     <!-- Babel for JSX-in-browser -->
+     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+ 
+     <!-- Tailwind CDN -->
+     <script src="https://cdn.tailwindcss.com"></script>
+ 
+     <!-- Fonts -->
+     <link
+       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600&family=Bodoni+Moda:wght@400;500;600&display=swap"
+       rel="stylesheet"
+     />
+ 
+     <style>
+       body {
+         -webkit-font-smoothing: antialiased;
+         -moz-osx-font-smoothing: grayscale;
++        background: #fafaf8;
++      }
++      /* Important for mobile drawing: prevents page scroll while drawing on canvas */
++      canvas.drawing-canvas {
++        touch-action: none;
+       }
+     </style>
+   </head>
+ 
+   <body>
+     <div id="root"></div>
+ 
+     <script type="text/babel">
+       const { useEffect, useMemo, useRef, useState } = React;
+ 
+       // ---------- Icons (inline SVG) ----------
+       const Calendar = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+           <line x1="16" y1="2" x2="16" y2="6" />
+           <line x1="8" y1="2" x2="8" y2="6" />
+           <line x1="3" y1="10" x2="21" y2="10" />
+         </svg>
+       );
+       const ChevronRight = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <polyline points="9 18 15 12 9 6" />
+         </svg>
+       );
+       const X = ({ className }) => (
+         <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <line x1="18" y1="6" x2="6" y2="18" />
+           <line x1="6" y1="6" x2="18" y2="18" />
+         </svg>
+       );
+       const Plus = ({ className }) => (
+         <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <line x1="12" y1="5" x2="12" y2="19" />
+           <line x1="5" y1="12" x2="19" y2="12" />
+         </svg>
+       );
+       const Check = ({ className }) => (
+         <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <polyline points="20 6 9 17 4 12" />
+         </svg>
+       );
+       const Circle = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+           <circle cx="12" cy="12" r="10" />
+         </svg>
+       );
++
+       const Zap = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+         </svg>
+       );
+       const Coffee = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+           <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+           <line x1="6" y1="1" x2="6" y2="4" />
+           <line x1="10" y1="1" x2="10" y2="4" />
+           <line x1="14" y1="1" x2="14" y2="4" />
+         </svg>
+       );
+       const Brain = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" />
+           <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />
+         </svg>
+       );
+-      const Dumbbell = ({ className, style }) => (
+-        <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+-          <path d="m6.5 6.5 11 11" />
+-          <path d="m21 21-1-1" />
+-          <path d="m3 3 1 1" />
+-          <path d="m18 22 4-4" />
+-          <path d="m2 6 4-4" />
+-          <path d="m3 10 7-7" />
+-          <path d="m14 21 7-7" />
+-        </svg>
+-      );
+       const Palette = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <circle cx="13.5" cy="6.5" r=".5" />
+           <circle cx="17.5" cy="10.5" r=".5" />
+           <circle cx="8.5" cy="7.5" r=".5" />
+           <circle cx="6.5" cy="12.5" r=".5" />
+           <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+         </svg>
+       );
+       const FileText = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+           <polyline points="14 2 14 8 20 8" />
+           <line x1="16" y1="13" x2="8" y2="13" />
+           <line x1="16" y1="17" x2="8" y2="17" />
+           <line x1="10" y1="9" x2="8" y2="9" />
+         </svg>
+       );
+       const Heart = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+         </svg>
+       );
+       const Sparkles = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+@@ -131,720 +126,1033 @@
+           <path d="M5 3v4" />
+           <path d="M19 17v4" />
+           <path d="M3 5h4" />
+           <path d="M17 19h4" />
+         </svg>
+       );
+       const Smile = ({ className, style }) => (
+         <svg className={className} style={style} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <circle cx="12" cy="12" r="10" />
+           <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+           <line x1="9" y1="9" x2="9.01" y2="9" />
+           <line x1="15" y1="9" x2="15.01" y2="9" />
+         </svg>
+       );
+       const Edit2 = ({ className }) => (
+         <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+         </svg>
+       );
+       const RotateCcw = ({ className }) => (
+         <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+           <polyline points="1 4 1 10 7 10" />
+           <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+         </svg>
+       );
++      const UndoIcon = ({ className }) => (
++        <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
++          <polyline points="9 14 4 9 9 4" />
++          <path d="M20 20a8 8 0 0 0-8-8H4" />
++        </svg>
++      );
+ 
+-      // ---------- Helpers ----------
++      // ---------- Utilities ----------
+       const pad2 = (n) => String(n).padStart(2, "0");
+       const toISODate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+-      const fromISODate = (s) => {
+-        const [y, m, d] = s.split("-").map(Number);
+-        return new Date(y, m - 1, d);
+-      };
+-      const addDays = (date, delta) => {
+-        const d = new Date(date);
++      const addDays = (iso, delta) => {
++        const d = new Date(iso + "T00:00:00");
+         d.setDate(d.getDate() + delta);
+-        return d;
++        return toISODate(d);
+       };
+-      const safeParse = (raw, fallback) => {
+-        try {
+-          return raw ? JSON.parse(raw) : fallback;
+-        } catch {
+-          return fallback;
+-        }
+-      };
+-
+-      // ---------- Drawing model ----------
+-      // stroke = { id, color, width, points: [{x,y}, ...] }
+-      const drawAllStrokes = (ctx, strokes) => {
+-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+-        for (const stroke of strokes) {
+-          if (!stroke.points || stroke.points.length < 2) continue;
+-          ctx.beginPath();
+-          ctx.lineCap = "round";
+-          ctx.lineJoin = "round";
+-          ctx.strokeStyle = stroke.color;
+-          ctx.lineWidth = stroke.width;
+-
+-          ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+-          for (let i = 1; i < stroke.points.length; i++) {
+-            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+-          }
+-          ctx.stroke();
+-        }
++      const prettyDate = (iso) => {
++        const d = new Date(iso + "T00:00:00");
++        return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+       };
+ 
+-      function ElegantTaskManager() {
+-        // ----- Date / “yearly” navigation -----
+-        const [activeDate, setActiveDate] = useState(toISODate(new Date()));
+-
+-        // Storage keys
+-        const TASKS_KEY = "eisenhower_tasks_by_date_v1";
+-        const STROKES_KEY = "eisenhower_strokes_by_date_v1";
+-
+-        // tasksByDate: { "YYYY-MM-DD": Task[] }
+-        const [tasksByDate, setTasksByDate] = useState({});
+-        // strokesByDate: { "YYYY-MM-DD": Stroke[] }
+-        const [strokesByDate, setStrokesByDate] = useState({});
+-
+-        // Load on mount
+-        useEffect(() => {
+-          setTasksByDate(safeParse(localStorage.getItem(TASKS_KEY), {}));
+-          setStrokesByDate(safeParse(localStorage.getItem(STROKES_KEY), {}));
+-        }, []);
+-
+-        // Persist
+-        useEffect(() => {
+-          localStorage.setItem(TASKS_KEY, JSON.stringify(tasksByDate));
+-        }, [tasksByDate]);
+-
+-        useEffect(() => {
+-          localStorage.setItem(STROKES_KEY, JSON.stringify(strokesByDate));
+-        }, [strokesByDate]);
+-
+-        // Carry-over unfinished tasks when visiting a date with no tasks yet
+-        useEffect(() => {
+-          const todaysTasks = tasksByDate[activeDate];
+-          if (todaysTasks && todaysTasks.length > 0) return;
+-
+-          // Find previous day with tasks
+-          const prevDate = toISODate(addDays(fromISODate(activeDate), -1));
+-          const prevTasks = tasksByDate[prevDate];
+-          if (!prevTasks || prevTasks.length === 0) return;
+-
+-          const carry = prevTasks
+-            .filter((t) => !t.completed)
+-            .map((t) => ({
+-              ...t,
+-              id: Date.now() + Math.random(),
+-              completed: false,
+-              carriedFrom: prevDate,
+-            }));
+-
+-          if (carry.length === 0) return;
++      // Storage keys
++      const TASKS_KEY = "eisenhower_tasks_by_day_v1";
++      const DRAW_KEY = "eisenhower_drawings_by_day_v1";
+ 
+-          setTasksByDate((prev) => ({
+-            ...prev,
+-            [activeDate]: carry,
+-          }));
+-        }, [activeDate, tasksByDate]);
++      // ---------- App ----------
++      function App() {
++        const todayISO = toISODate(new Date());
+ 
+-        const tasks = tasksByDate[activeDate] || [];
+-        const setTasksForActiveDate = (nextTasks) => {
+-          setTasksByDate((prev) => ({ ...prev, [activeDate]: nextTasks }));
+-        };
+-
+-        // ---------- Categories / Quadrants ----------
+         const categories = useMemo(
+           () => ({
+             "Quick Wins": { icon: Zap, color: "#E8B4B8" },
+             "Deep Focus": { icon: Brain, color: "#9B6B6E" },
+             "Body Doubling": { icon: Coffee, color: "#D4A5A5" },
+-            "Movement Break": { icon: Dumbbell, color: "#B4C7D4" },
+             "Creative Flow": { icon: Palette, color: "#E8D4B8" },
+             "Admin Stuff": { icon: FileText, color: "#B8B8B8" },
+             "Self Care": { icon: Heart, color: "#D4E8B8" },
+             "Dopamine Hits": { icon: Sparkles, color: "#FFD4E5" },
+             "Later Maybe": { icon: Smile, color: "#E8E8E8" },
+           }),
+           []
+         );
+ 
+         const quadrants = useMemo(
+           () => ({
+             "urgent-important": { title: "Do First", subtitle: "Urgent & Important", priority: "high", color: "#D88B8B", icon: "🔴" },
+             "not-urgent-important": { title: "Schedule", subtitle: "Important, Not Urgent", priority: "medium", color: "#E8B4B8", icon: "🟡" },
+             "urgent-not-important": { title: "Delegate", subtitle: "Urgent, Not Important", priority: "low", color: "#B4C7D4", icon: "🟢" },
+             "not-urgent-not-important": { title: "Later", subtitle: "Neither Urgent nor Important", priority: "later", color: "#E8E8E8", icon: "⚪" },
+           }),
+           []
+         );
+ 
+-        const getTasksByQuadrant = (quadrantKey) => {
+-          const q = quadrants[quadrantKey];
+-          return tasks.filter((t) => !t.completed && t.priority === q.priority);
+-        };
++        // --- Day navigation ---
++        const [selectedDate, setSelectedDate] = useState(todayISO);
+ 
+-        // ---------- Task UI state ----------
++        // --- Tasks storage ---
++        const [tasksByDay, setTasksByDay] = useState({}); // { [date]: { tasks: [], createdFrom?: "YYYY-MM-DD" } }
++
++        // --- Drawings storage (strokes per day) ---
++        const [drawByDay, setDrawByDay] = useState({}); // { [date]: { strokes: Stroke[] } }
++
++        // --- UI states ---
+         const [expandedTask, setExpandedTask] = useState(null);
+         const [showAddTask, setShowAddTask] = useState(false);
++
+         const [newTask, setNewTask] = useState({
+           title: "",
+           category: "Quick Wins",
+           priority: "medium",
+           dueDate: "",
+           notes: "",
+           timeEstimate: 25,
+         });
+-        const [newSubtaskText, setNewSubtaskText] = useState("");
+ 
+-        const addTask = () => {
+-          if (!newTask.title.trim()) return;
+-          const task = {
+-            id: Date.now(),
+-            title: newTask.title.trim(),
+-            category: newTask.category,
+-            priority: newTask.priority,
+-            dueDate: newTask.dueDate,
+-            notes: newTask.notes,
+-            timeEstimate: Number(newTask.timeEstimate) || 0,
+-            completed: false,
+-            subtasks: [],
+-          };
+-          setTasksForActiveDate([task, ...tasks]);
+-          setNewTask({ title: "", category: "Quick Wins", priority: "medium", dueDate: "", notes: "", timeEstimate: 25 });
+-          setShowAddTask(false);
+-        };
++        // Drawing mode
++        const [isDrawingMode, setIsDrawingMode] = useState(false);
++        const [drawingColor, setDrawingColor] = useState("#9B6B6E");
++        const [lineWidth, setLineWidth] = useState(3);
+ 
+-        const toggleTask = (id) => {
+-          setTasksForActiveDate(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
+-        };
++        // Canvas refs + drawing state
++        const canvasRef = useRef(null);
++        const ctxRef = useRef(null);
++        const isPointerDownRef = useRef(false);
++        const activeStrokeRef = useRef(null);
+ 
+-        const deleteTask = (id) => {
+-          setTasksForActiveDate(tasks.filter((t) => t.id !== id));
+-          setExpandedTask(null);
+-        };
++        // ----- Load from localStorage on mount -----
++        useEffect(() => {
++          try {
++            const rawTasks = localStorage.getItem(TASKS_KEY);
++            if (rawTasks) setTasksByDay(JSON.parse(rawTasks));
++          } catch (e) {
++            console.warn("Failed to load tasks", e);
++          }
+ 
+-        const addSubtask = (taskId) => {
+-          const text = newSubtaskText.trim();
+-          if (!text) return;
+-          setTasksForActiveDate(
+-            tasks.map((t) =>
+-              t.id === taskId
+-                ? { ...t, subtasks: [...(t.subtasks || []), { id: Date.now(), text, completed: false }] }
+-                : t
+-            )
+-          );
+-          setNewSubtaskText("");
+-        };
++          try {
++            const rawDraw = localStorage.getItem(DRAW_KEY);
++            if (rawDraw) setDrawByDay(JSON.parse(rawDraw));
++          } catch (e) {
++            console.warn("Failed to load drawings", e);
++          }
++        }, []);
+ 
+-        const toggleSubtask = (taskId, subtaskId) => {
+-          setTasksForActiveDate(
+-            tasks.map((t) => {
+-              if (t.id !== taskId) return t;
+-              return {
+-                ...t,
+-                subtasks: (t.subtasks || []).map((st) => (st.id === subtaskId ? { ...st, completed: !st.completed } : st)),
+-              };
+-            })
+-          );
+-        };
++        // ----- Persist to localStorage -----
++        useEffect(() => {
++          localStorage.setItem(TASKS_KEY, JSON.stringify(tasksByDay));
++        }, [tasksByDay]);
+ 
+-        // ---------- Drawing state ----------
+-        const [isDrawingMode, setIsDrawingMode] = useState(false);
+-        const [drawingColor, setDrawingColor] = useState("#9B6B6E");
+-        const [lineWidth, setLineWidth] = useState(3);
++        useEffect(() => {
++          localStorage.setItem(DRAW_KEY, JSON.stringify(drawByDay));
++        }, [drawByDay]);
+ 
+-        const inkCanvasRef = useRef(null);   // always-visible, non-interactive layer
+-        const drawCanvasRef = useRef(null);  // interactive while drawing
+-        const activeStrokeRef = useRef(null);
+-        const isStrokeActiveRef = useRef(false);
++        // ----- Ensure day exists + carry over unfinished tasks on first creation -----
++        useEffect(() => {
++          setTasksByDay((prev) => {
++            if (prev[selectedDate]) return prev;
+ 
+-        const strokes = strokesByDate[activeDate] || [];
+-        const setStrokesForActiveDate = (nextStrokes) => {
+-          setStrokesByDate((prev) => ({ ...prev, [activeDate]: nextStrokes }));
+-        };
++            const prevDay = addDays(selectedDate, -1);
++            const prevEntry = prev[prevDay];
++            const carry = prevEntry?.tasks ? prevEntry.tasks.filter((t) => !t.completed) : [];
++
++            // Clone carry-over tasks with new IDs so days are independent
++            const carriedTasks = carry.map((t) => ({
++              ...t,
++              id: Date.now() + Math.floor(Math.random() * 100000),
++              completed: false,
++              carriedFrom: prevDay,
++            }));
+ 
+-        const resizeCanvasToViewport = (canvas) => {
++            return {
++              ...prev,
++              [selectedDate]: {
++                createdFrom: prevDay,
++                tasks: carriedTasks,
++              },
++            };
++          });
++
++          // Ensure drawing day exists
++          setDrawByDay((prev) => {
++            if (prev[selectedDate]) return prev;
++            return { ...prev, [selectedDate]: { strokes: [] } };
++          });
++
++          setExpandedTask(null);
++        }, [selectedDate]);
++
++        const tasksToday = tasksByDay[selectedDate]?.tasks || [];
++        const strokesToday = drawByDay[selectedDate]?.strokes || [];
++
++        // ----- Canvas setup + resize -----
++        const resizeCanvas = () => {
++          const canvas = canvasRef.current;
+           if (!canvas) return;
+-          // account for devicePixelRatio so lines aren't blurry on retina
++
+           const dpr = window.devicePixelRatio || 1;
+-          canvas.width = Math.floor(window.innerWidth * dpr);
+-          canvas.height = Math.floor(window.innerHeight * dpr);
+-          canvas.style.width = window.innerWidth + "px";
+-          canvas.style.height = window.innerHeight + "px";
++          const w = window.innerWidth;
++          const h = window.innerHeight;
++
++          canvas.width = Math.floor(w * dpr);
++          canvas.height = Math.floor(h * dpr);
++          canvas.style.width = w + "px";
++          canvas.style.height = h + "px";
++
+           const ctx = canvas.getContext("2d");
+-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixel space
++          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
++          ctx.lineCap = "round";
++          ctx.lineJoin = "round";
++          ctxRef.current = ctx;
++
++          redrawAllStrokes();
+         };
+ 
+-        // Keep the “ink layer” always drawn
+         useEffect(() => {
+-          const ink = inkCanvasRef.current;
+-          if (!ink) return;
++          // When date changes, redraw that day's strokes (even if not in drawing mode yet)
++          // If canvas isn't mounted (drawing mode off), it's fine — it will redraw when mounted.
++          if (isDrawingMode) {
++            // delay a tick to ensure canvas exists
++            requestAnimationFrame(() => resizeCanvas());
++          }
++        }, [selectedDate, isDrawingMode]);
+ 
++        useEffect(() => {
+           const onResize = () => {
+-            resizeCanvasToViewport(ink);
+-            const ctx = ink.getContext("2d");
+-            drawAllStrokes(ctx, strokes);
++            if (isDrawingMode) resizeCanvas();
+           };
+-
+-          onResize();
+           window.addEventListener("resize", onResize);
+           return () => window.removeEventListener("resize", onResize);
+-          // eslint-disable-next-line react-hooks/exhaustive-deps
+-        }, [activeDate]);
+-
+-        // Repaint ink canvas whenever strokes change
+-        useEffect(() => {
+-          const ink = inkCanvasRef.current;
+-          if (!ink) return;
+-          const ctx = ink.getContext("2d");
+-          drawAllStrokes(ctx, strokes);
+-        }, [strokes]);
+-
+-        // Setup interactive draw canvas when toggling drawing mode
+-        useEffect(() => {
+-          const drawCanvas = drawCanvasRef.current;
+-          if (!drawCanvas) return;
++        }, [isDrawingMode]);
+ 
+-          if (!isDrawingMode) return;
++        // ----- Drawing model -----
++        // Stroke = { id, color, width, points: [{x,y}, ...] }
++        const redrawAllStrokes = () => {
++          const canvas = canvasRef.current;
++          const ctx = ctxRef.current;
++          if (!canvas || !ctx) return;
+ 
+-          resizeCanvasToViewport(drawCanvas);
++          ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+-          // When entering draw mode, start from the existing strokes so you can keep drawing seamlessly
+-          const ctx = drawCanvas.getContext("2d");
+-          drawAllStrokes(ctx, strokes);
++          const dayStrokes = drawByDay[selectedDate]?.strokes || [];
++          for (const s of dayStrokes) {
++            drawStroke(ctx, s);
++          }
++        };
+ 
+-          const onResize = () => {
+-            resizeCanvasToViewport(drawCanvas);
+-            drawAllStrokes(drawCanvas.getContext("2d"), strokes);
+-          };
++        const drawStroke = (ctx, stroke) => {
++          const pts = stroke.points || [];
++          if (pts.length < 2) return;
+ 
+-          window.addEventListener("resize", onResize);
+-          return () => window.removeEventListener("resize", onResize);
+-        }, [isDrawingMode, strokes]);
++          ctx.strokeStyle = stroke.color;
++          ctx.lineWidth = stroke.width;
+ 
+-        const toggleDrawingMode = () => {
+-          // When exiting draw mode, merge whatever is on drawCanvas into strokes already (strokes are source of truth)
+-          setIsDrawingMode((v) => !v);
+-          // Safety: end any active stroke
+-          isStrokeActiveRef.current = false;
+-          activeStrokeRef.current = null;
++          ctx.beginPath();
++          ctx.moveTo(pts[0].x, pts[0].y);
++          for (let i = 1; i < pts.length; i++) {
++            ctx.lineTo(pts[i].x, pts[i].y);
++          }
++          ctx.stroke();
+         };
+ 
+-        const getPointFromEvent = (e, canvas) => {
++        const getPointFromEvent = (e) => {
++          const canvas = canvasRef.current;
++          if (!canvas) return null;
+           const rect = canvas.getBoundingClientRect();
+-          const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+-          const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+-          return { x: clientX - rect.left, y: clientY - rect.top };
++          // PointerEvent has clientX/clientY for mouse + touch
++          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+         };
+ 
+         const onPointerDown = (e) => {
+           if (!isDrawingMode) return;
+-          const canvas = drawCanvasRef.current;
++          e.preventDefault();
++
++          const canvas = canvasRef.current;
+           if (!canvas) return;
+ 
+-          // Capture the pointer so you can draw even if finger leaves canvas
+           canvas.setPointerCapture?.(e.pointerId);
+ 
+-          isStrokeActiveRef.current = true;
+-          const p = getPointFromEvent(e, canvas);
++          isPointerDownRef.current = true;
++          const p = getPointFromEvent(e);
++          if (!p) return;
++
+           const stroke = {
+-            id: Date.now() + Math.random(),
++            id: Date.now() + Math.floor(Math.random() * 100000),
+             color: drawingColor,
+             width: lineWidth,
+             points: [p],
+           };
+           activeStrokeRef.current = stroke;
+-
+-          const ctx = canvas.getContext("2d");
+-          ctx.beginPath();
+-          ctx.lineCap = "round";
+-          ctx.lineJoin = "round";
+-          ctx.strokeStyle = stroke.color;
+-          ctx.lineWidth = stroke.width;
+-          ctx.moveTo(p.x, p.y);
+         };
+ 
+         const onPointerMove = (e) => {
+           if (!isDrawingMode) return;
+-          if (!isStrokeActiveRef.current) return;
++          if (!isPointerDownRef.current) return;
++          e.preventDefault();
+ 
+-          const canvas = drawCanvasRef.current;
+-          if (!canvas) return;
++          const ctx = ctxRef.current;
++          if (!ctx) return;
++
++          const p = getPointFromEvent(e);
++          if (!p) return;
+ 
+           const stroke = activeStrokeRef.current;
+           if (!stroke) return;
+ 
+-          const p = getPointFromEvent(e, canvas);
+           stroke.points.push(p);
+ 
+-          const ctx = canvas.getContext("2d");
+-          ctx.lineTo(p.x, p.y);
+-          ctx.stroke();
++          // Draw incrementally for smoothness (only last segment)
++          const pts = stroke.points;
++          if (pts.length >= 2) {
++            ctx.strokeStyle = stroke.color;
++            ctx.lineWidth = stroke.width;
++            ctx.beginPath();
++            ctx.moveTo(pts[pts.length - 2].x, pts[pts.length - 2].y);
++            ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
++            ctx.stroke();
++          }
+         };
+ 
+-        const endStroke = () => {
+-          if (!isDrawingMode) return;
+-          if (!isStrokeActiveRef.current) return;
+-
+-          isStrokeActiveRef.current = false;
++        const finalizeStroke = () => {
++          if (!isPointerDownRef.current) return;
++          isPointerDownRef.current = false;
+ 
+           const stroke = activeStrokeRef.current;
+           activeStrokeRef.current = null;
+ 
+-          if (stroke && stroke.points.length > 1) {
+-            // Commit stroke to strokesByDate
+-            setStrokesForActiveDate([...strokes, stroke]);
+-          } else {
+-            // If it's a tap with 1 point, make a tiny dot by duplicating the point
+-            if (stroke && stroke.points.length === 1) {
+-              const p = stroke.points[0];
+-              stroke.points.push({ x: p.x + 0.01, y: p.y + 0.01 });
+-              setStrokesForActiveDate([...strokes, stroke]);
+-            }
+-          }
++          if (!stroke || stroke.points.length < 2) return;
++
++          // Save stroke
++          setDrawByDay((prev) => {
++            const day = prev[selectedDate] || { strokes: [] };
++            return {
++              ...prev,
++              [selectedDate]: {
++                ...day,
++                strokes: [...(day.strokes || []), stroke],
++              },
++            };
++          });
++        };
+ 
+-          // Reset interactive canvas to be faithful to strokes (prevents drift)
+-          const canvas = drawCanvasRef.current;
+-          if (canvas) {
+-            drawAllStrokes(canvas.getContext("2d"), [...strokes, stroke].filter(Boolean));
+-          }
++        const onPointerUp = (e) => {
++          if (!isDrawingMode) return;
++          e.preventDefault();
++          finalizeStroke();
+         };
+ 
+-        const undoStroke = () => {
+-          if (strokes.length === 0) return;
+-          const next = strokes.slice(0, -1);
+-          setStrokesForActiveDate(next);
++        const onPointerCancel = (e) => {
++          if (!isDrawingMode) return;
++          e.preventDefault();
++          finalizeStroke();
++        };
+ 
+-          // If in draw mode, redraw drawCanvas too
+-          const drawCanvas = drawCanvasRef.current;
+-          if (drawCanvas) drawAllStrokes(drawCanvas.getContext("2d"), next);
++        const toggleDrawingMode = () => {
++          setIsDrawingMode((v) => !v);
++          // When turning on, setup canvas next frame
++          requestAnimationFrame(() => {
++            if (!isDrawingMode) resizeCanvas();
++          });
+         };
+ 
+         const clearDrawing = () => {
+-          setStrokesForActiveDate([]);
+-          const drawCanvas = drawCanvasRef.current;
+-          if (drawCanvas) drawAllStrokes(drawCanvas.getContext("2d"), []);
++          setDrawByDay((prev) => ({
++            ...prev,
++            [selectedDate]: { strokes: [] },
++          }));
++          requestAnimationFrame(() => redrawAllStrokes());
++        };
++
++        const undoStroke = () => {
++          setDrawByDay((prev) => {
++            const day = prev[selectedDate] || { strokes: [] };
++            const nextStrokes = (day.strokes || []).slice(0, -1);
++            return { ...prev, [selectedDate]: { ...day, strokes: nextStrokes } };
++          });
++          // redraw after state update
++          requestAnimationFrame(() => {
++            // allow state to commit; redraw in another tick too
++            requestAnimationFrame(() => redrawAllStrokes());
++          });
++        };
++
++        // When stroke list changes while drawing mode is on, redraw (for undo/clear/date switch)
++        useEffect(() => {
++          if (!isDrawingMode) return;
++          requestAnimationFrame(() => redrawAllStrokes());
++        }, [selectedDate, drawByDay, isDrawingMode]);
++
++        // ----- Task operations -----
++        const addTask = () => {
++          const title = newTask.title.trim();
++          if (!title) return;
++
++          const task = {
++            id: Date.now() + Math.floor(Math.random() * 100000),
++            title,
++            category: newTask.category,
++            priority: newTask.priority,
++            dueDate: newTask.dueDate,
++            notes: newTask.notes,
++            timeEstimate: Number(newTask.timeEstimate) || 0,
++            completed: false,
++            subtasks: [],
++          };
++
++          setTasksByDay((prev) => {
++            const day = prev[selectedDate] || { tasks: [] };
++            return { ...prev, [selectedDate]: { ...day, tasks: [task, ...(day.tasks || [])] } };
++          });
++
++          setNewTask({ title: "", category: "Quick Wins", priority: "medium", dueDate: "", notes: "", timeEstimate: 25 });
++          setShowAddTask(false);
++        };
++
++        const toggleTask = (taskId) => {
++          setTasksByDay((prev) => {
++            const day = prev[selectedDate];
++            if (!day) return prev;
++            return {
++              ...prev,
++              [selectedDate]: {
++                ...day,
++                tasks: day.tasks.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t)),
++              },
++            };
++          });
++        };
++
++        const deleteTask = (taskId) => {
++          setTasksByDay((prev) => {
++            const day = prev[selectedDate];
++            if (!day) return prev;
++            return {
++              ...prev,
++              [selectedDate]: {
++                ...day,
++                tasks: day.tasks.filter((t) => t.id !== taskId),
++              },
++            };
++          });
++          setExpandedTask(null);
+         };
+ 
+-        // ---------- Date UI ----------
+-        const prettyDate = useMemo(() => {
+-          const d = fromISODate(activeDate);
+-          return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+-        }, [activeDate]);
++        const addSubtask = (taskId, text) => {
++          const val = text.trim();
++          if (!val) return;
++
++          setTasksByDay((prev) => {
++            const day = prev[selectedDate];
++            if (!day) return prev;
++
++            return {
++              ...prev,
++              [selectedDate]: {
++                ...day,
++                tasks: day.tasks.map((t) =>
++                  t.id === taskId
++                    ? { ...t, subtasks: [...(t.subtasks || []), { id: Date.now() + Math.random(), text: val, completed: false }] }
++                    : t
++                ),
++              },
++            };
++          });
++        };
+ 
+-        const goPrevDay = () => setActiveDate(toISODate(addDays(fromISODate(activeDate), -1)));
+-        const goNextDay = () => setActiveDate(toISODate(addDays(fromISODate(activeDate), 1)));
++        const toggleSubtask = (taskId, subtaskId) => {
++          setTasksByDay((prev) => {
++            const day = prev[selectedDate];
++            if (!day) return prev;
++
++            return {
++              ...prev,
++              [selectedDate]: {
++                ...day,
++                tasks: day.tasks.map((t) => {
++                  if (t.id !== taskId) return t;
++                  return {
++                    ...t,
++                    subtasks: (t.subtasks || []).map((st) => (st.id === subtaskId ? { ...st, completed: !st.completed } : st)),
++                  };
++                }),
++              },
++            };
++          });
++        };
++
++        const getTasksByQuadrant = (quadrantKey) => {
++          const q = quadrants[quadrantKey];
++          return tasksToday.filter((t) => !t.completed && t.priority === q.priority);
++        };
+ 
++        const completedTasks = tasksToday.filter((t) => t.completed);
++
++        // ----- UI -----
+         return (
+-          <div
+-            className="min-h-screen"
+-            style={{
+-              backgroundColor: "#FAFAF8",
+-              fontFamily: "'Inter', -apple-system, sans-serif",
+-            }}
+-          >
+-            {/* Always-visible INK layer (shows drawing even when drawing mode is off) */}
+-            <canvas
+-              ref={inkCanvasRef}
+-              className="fixed inset-0 z-0"
+-              style={{ pointerEvents: "none" }}
+-              aria-hidden="true"
+-            ></canvas>
+-
+-            {/* Interactive drawing layer (only when drawing mode ON) */}
++          <div className="min-h-screen" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
++            {/* Canvas overlay (only blocks when drawing mode ON) */}
+             {isDrawingMode && (
+               <>
+-                <canvas
+-                  ref={drawCanvasRef}
+-                  className="fixed inset-0 z-40"
+-                  style={{
+-                    touchAction: "none",         // ✅ mobile-friendly (prevents scroll while drawing)
+-                    background: "transparent",
+-                  }}
+-                  onPointerDown={onPointerDown}
+-                  onPointerMove={onPointerMove}
+-                  onPointerUp={endStroke}
+-                  onPointerCancel={endStroke}
+-                  onPointerLeave={endStroke}
+-                ></canvas>
+-
+-                {/* Emergency exit button */}
++                <div className="fixed inset-0 z-50">
++                  <canvas
++                    ref={canvasRef}
++                    className="drawing-canvas absolute inset-0 cursor-crosshair"
++                    onPointerDown={onPointerDown}
++                    onPointerMove={onPointerMove}
++                    onPointerUp={onPointerUp}
++                    onPointerCancel={onPointerCancel}
++                  />
++                </div>
++
++                {/* Always-visible escape hatch */}
+                 <button
+-                  onClick={toggleDrawingMode}
+-                  className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg font-semibold shadow-lg"
++                  onClick={() => setIsDrawingMode(false)}
++                  className="fixed top-4 right-4 z-[60] px-4 py-2 rounded-lg font-semibold shadow-lg"
+                   style={{ backgroundColor: "#9B6B6E", color: "white" }}
+                 >
+                   Exit Drawing
+                 </button>
+               </>
+             )}
+ 
+-            {/* Main UI */}
+-            <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
++            <div className="max-w-7xl mx-auto px-6 py-8 relative">
+               {/* Header */}
+               <div className="text-center mb-6">
+                 <h1
+                   className="text-5xl mb-2 tracking-wide"
+                   style={{
+                     fontFamily: "'Bodoni Moda', 'Playfair Display', serif",
+                     color: "#2C2C2C",
+                     fontWeight: "400",
+                   }}
+                 >
+                   Daily Tasks
+                 </h1>
+ 
+-                <div className="flex flex-wrap items-center justify-center gap-3 text-base font-medium" style={{ color: "#6B6B6B" }}>
+-                  <span className="inline-flex items-center gap-2">
+-                    <Calendar className="w-4 h-4" />
+-                    <span>{prettyDate}</span>
+-                  </span>
+-
+-                  {/* Date controls */}
+-                  <div className="flex items-center gap-2">
+-                    <button
+-                      onClick={goPrevDay}
+-                      className="px-3 py-2 rounded-lg border-2 bg-white font-semibold hover:shadow-sm"
+-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
+-                      aria-label="Previous day"
+-                    >
+-                      ◀
+-                    </button>
++                <div className="flex items-center justify-center gap-2 text-base font-medium" style={{ color: "#6B6B6B" }}>
++                  <Calendar className="w-4 h-4" />
++                  <span>{prettyDate(selectedDate)}</span>
++                </div>
+ 
++                {/* Date nav */}
++                <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
++                  <button
++                    className="px-3 py-2 rounded-lg border-2 font-semibold hover:bg-white"
++                    style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
++                    onClick={() => setSelectedDate(addDays(selectedDate, -1))}
++                  >
++                    ← Prev
++                  </button>
++
++                  <button
++                    className="px-3 py-2 rounded-lg border-2 font-semibold hover:bg-white"
++                    style={{ borderColor: "#9B6B6E", color: "#9B6B6E" }}
++                    onClick={() => setSelectedDate(todayISO)}
++                  >
++                    Today
++                  </button>
++
++                  <button
++                    className="px-3 py-2 rounded-lg border-2 font-semibold hover:bg-white"
++                    style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
++                    onClick={() => setSelectedDate(addDays(selectedDate, 1))}
++                  >
++                    Next →
++                  </button>
++
++                  <div className="ml-2 flex items-center gap-2">
++                    <span className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
++                      Jump:
++                    </span>
+                     <input
+                       type="date"
+-                      value={activeDate}
+-                      onChange={(e) => setActiveDate(e.target.value)}
+-                      className="px-3 py-2 rounded-lg border-2 bg-white font-semibold"
+-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
+-                      aria-label="Pick a date"
++                      value={selectedDate}
++                      onChange={(e) => setSelectedDate(e.target.value)}
++                      className="px-3 py-2 rounded-lg border-2 font-medium"
++                      style={{ borderColor: "#E8E8E8" }}
+                     />
+-
+-                    <button
+-                      onClick={goNextDay}
+-                      className="px-3 py-2 rounded-lg border-2 bg-white font-semibold hover:shadow-sm"
+-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
+-                      aria-label="Next day"
+-                    >
+-                      ▶
+-                    </button>
+                   </div>
+                 </div>
+               </div>
+ 
+               {/* Controls */}
+-              <div className="flex justify-center gap-3 mb-8 flex-wrap">
++              <div className="flex justify-center gap-3 mb-8 flex-wrap relative z-10">
+                 <button
+                   onClick={() => setShowAddTask(true)}
+                   className="px-6 py-3 bg-white border-2 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
+                   style={{ borderColor: "#9B6B6E", color: "#9B6B6E" }}
+                 >
+                   <Plus className="w-5 h-5" />
+                   <span>New Task</span>
+                 </button>
+ 
+                 <button
+-                  onClick={toggleDrawingMode}
++                  onClick={() => {
++                    // If turning on, ensure canvas fits
++                    if (!isDrawingMode) requestAnimationFrame(() => resizeCanvas());
++                    toggleDrawingMode();
++                  }}
+                   className="px-6 py-3 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
+                   style={{
+                     backgroundColor: isDrawingMode ? "#9B6B6E" : "white",
+                     color: isDrawingMode ? "white" : "#9B6B6E",
+                     border: `2px solid ${isDrawingMode ? "#9B6B6E" : "#E8E8E8"}`,
+                   }}
+                 >
+                   <Edit2 className="w-5 h-5" />
+                   <span>{isDrawingMode ? "Drawing Mode ON" : "Draw / Annotate"}</span>
+                 </button>
+ 
+-                {/* Drawing toolbar (works even when draw mode is off, because ink stays visible) */}
+-                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border-2" style={{ borderColor: "#E8E8E8" }}>
++                {/* Drawing controls (work only when drawing mode ON) */}
++                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2" style={{ borderColor: "#E8E8E8" }}>
+                   <Palette className="w-5 h-5" style={{ color: "#6B6B6B" }} />
+                   {["#9B6B6E", "#E8B4B8", "#D4A5A5", "#B4C7D4", "#2C2C2C"].map((c) => (
+                     <button
+                       key={c}
+                       onClick={() => setDrawingColor(c)}
+                       className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
+                       style={{
+                         backgroundColor: c,
+                         borderColor: drawingColor === c ? "#2C2C2C" : "transparent",
+                         borderWidth: drawingColor === c ? "3px" : "2px",
+                       }}
+-                      aria-label={`Set color ${c}`}
++                      title="Ink"
+                     />
+                   ))}
+                 </div>
+ 
+-                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border-2" style={{ borderColor: "#E8E8E8" }}>
++                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2" style={{ borderColor: "#E8E8E8" }}>
+                   <span className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
+-                    Pen
++                    Width
+                   </span>
+                   <input
+                     type="range"
+                     min="1"
+                     max="10"
+                     value={lineWidth}
+                     onChange={(e) => setLineWidth(Number(e.target.value))}
+                     className="w-28"
+-                    aria-label="Line width"
+                   />
+                 </div>
+ 
+                 <button
+-                  onClick={undoStroke}
+-                  className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50"
++                  onClick={() => {
++                    if (!isDrawingMode) return;
++                    undoStroke();
++                  }}
++                  className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50 disabled:opacity-50"
+                   style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
++                  disabled={!isDrawingMode || strokesToday.length === 0}
++                  title="Undo last stroke"
+                 >
+-                  Undo
++                  <UndoIcon className="w-5 h-5" />
++                  <span>Undo</span>
+                 </button>
+ 
+                 <button
+-                  onClick={clearDrawing}
+-                  className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50"
++                  onClick={() => {
++                    if (!isDrawingMode) return;
++                    clearDrawing();
++                  }}
++                  className="px-4 py-3 bg-white rounded-lg border-2 font-semibold flex items-center gap-2 transition-all hover:bg-gray-50 disabled:opacity-50"
+                   style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
++                  disabled={!isDrawingMode || strokesToday.length === 0}
++                  title="Clear all strokes for this day"
+                 >
+                   <RotateCcw className="w-5 h-5" />
+                   <span>Clear</span>
+                 </button>
+               </div>
+ 
+               {/* Eisenhower Grid */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                 {Object.entries(quadrants).map(([key, quadrant]) => {
+                   const quadrantTasks = getTasksByQuadrant(key);
++
+                   return (
+                     <div key={key} className="bg-white rounded-xl border-2 p-6 min-h-[360px]" style={{ borderColor: quadrant.color }}>
+                       <div className="mb-4 pb-3 border-b-2" style={{ borderColor: quadrant.color }}>
+                         <div className="flex items-center gap-2 mb-1">
+                           <span className="text-2xl">{quadrant.icon}</span>
+-                          <h2 className="text-2xl font-normal tracking-wide" style={{ fontFamily: "'Bodoni Moda', serif", color: "#2C2C2C" }}>
++                          <h2
++                            className="text-2xl font-normal tracking-wide"
++                            style={{ fontFamily: "'Bodoni Moda', serif", color: "#2C2C2C" }}
++                          >
+                             {quadrant.title}
+                           </h2>
+                         </div>
+                         <p className="text-sm font-semibold" style={{ color: quadrant.color }}>
+                           {quadrant.subtitle}
+                         </p>
+                       </div>
+ 
+                       <div className="space-y-3">
+                         {quadrantTasks.length === 0 && (
+                           <div className="text-sm font-medium" style={{ color: "#9A9A9A" }}>
+                             No tasks here yet.
+                           </div>
+                         )}
+ 
+                         {quadrantTasks.map((task) => {
+                           const cat = categories[task.category] || categories["Quick Wins"];
+                           const CategoryIcon = cat.icon;
+                           const isExpanded = expandedTask === task.id;
+ 
+                           return (
+-                            <div
++                            <TaskCard
+                               key={task.id}
+-                              className="border-2 rounded-lg transition-all hover:shadow-md"
+-                              style={{
+-                                borderColor: isExpanded ? cat.color : "#E8E8E8",
+-                                backgroundColor: isExpanded ? "#FAFAF8" : "white",
+-                              }}
+-                            >
+-                              <div className="p-4 cursor-pointer" onClick={() => setExpandedTask(isExpanded ? null : task.id)}>
+-                                <div className="flex items-start gap-3">
+-                                  <button
+-                                    onClick={(e) => {
+-                                      e.stopPropagation();
+-                                      toggleTask(task.id);
+-                                    }}
+-                                    className="flex-shrink-0 mt-1"
+-                                    aria-label="Toggle complete"
+-                                  >
+-                                    {task.completed ? (
+-                                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.color }}>
+-                                        <Check className="w-3 h-3 text-white font-bold" />
+-                                      </div>
+-                                    ) : (
+-                                      <Circle className="w-5 h-5" style={{ color: cat.color, strokeWidth: 2.5 }} />
+-                                    )}
+-                                  </button>
+-
+-                                  <div className="flex-1 min-w-0">
+-                                    <h3 className="text-base font-semibold mb-1" style={{ color: "#2C2C2C" }}>
+-                                      {task.title}
+-                                    </h3>
+-
+-                                    <div className="flex items-center gap-2 text-xs">
+-                                      <CategoryIcon className="w-3 h-3" style={{ color: cat.color }} />
+-                                      <span className="font-medium" style={{ color: "#6B6B6B" }}>
+-                                        {task.category}
+-                                      </span>
+-                                      {!!task.timeEstimate && (
+-                                        <>
+-                                          <span style={{ color: "#D0D0D0" }}>•</span>
+-                                          <span className="font-medium" style={{ color: "#6B6B6B" }}>
+-                                            {task.timeEstimate}m
+-                                          </span>
+-                                        </>
+-                                      )}
+-                                      {task.carriedFrom && (
+-                                        <>
+-                                          <span style={{ color: "#D0D0D0" }}>•</span>
+-                                          <span className="font-medium" style={{ color: "#9B6B6E" }}>
+-                                            carried from {task.carriedFrom}
+-                                          </span>
+-                                        </>
+-                                      )}
+-                                    </div>
+-                                  </div>
+-
+-                                  <ChevronRight
+-                                    className="w-5 h-5 transition-transform flex-shrink-0"
+-                                    style={{ color: "#9B6B6E", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+-                                  />
+-                                </div>
++                              task={task}
++                              cat={cat}
++                              CategoryIcon={CategoryIcon}
++                              isExpanded={isExpanded}
++                              setExpandedTask={setExpandedTask}
++                              toggleTask={toggleTask}
++                              deleteTask={deleteTask}
++                              addSubtask={addSubtask}
++                              toggleSubtask={toggleSubtask}
++                            />
++                          );
++                        })}
++                      </div>
++                    </div>
++                  );
++                })}
++              </div>
++
++              {/* Completed */}
++              <div className="bg-white rounded-xl border-2 p-6" style={{ borderColor: "#E8E8E8" }}>
++                <h3 className="text-xl mb-4" style={{ fontFamily: "'Bodoni Moda', serif", color: "#2C2C2C", fontWeight: 400 }}>
++                  Completed
++                </h3>
++
++                {completedTasks.length === 0 ? (
++                  <div className="text-sm font-medium" style={{ color: "#9A9A9A" }}>
++                    Nothing completed yet — go be slightly chaotic but effective.
++                  </div>
++                ) : (
++                  <div className="space-y-2">
++                    {completedTasks.map((t) => {
++                      const cat = categories[t.category] || categories["Quick Wins"];
++                      const CategoryIcon = cat.icon;
++                      return (
++                        <div key={t.id} className="flex items-center gap-3 p-3 rounded-lg border-2" style={{ borderColor: "#F1F1F1" }}>
++                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.color }}>
++                            <Check className="w-3 h-3 text-white font-bold" />
++                          </div>
++                          <div className="flex-1">
++                            <div className="text-sm font-semibold" style={{ color: "#2C2C2C" }}>
++                              {t.title}
++                            </div>
++                            <div className="text-xs flex items-center gap-2">
++                              <CategoryIcon className="w-3 h-3" style={{ color: cat.color }} />
++                              <span style={{ color: "#6B6B6B" }}>{t.category}</span>
++                            </div>
++                          </div>
++                          <button
++                            onClick={() => toggleTask(t.id)}
++                            className="text-xs font-semibold px-2 py-1 rounded border-2 hover:bg-gray-50"
++                            style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
++                          >
++                            Undo
++                          </button>
++                        </div>
++                      );
++                    })}
++                  </div>
++                )}
++              </div>
++
++              {/* Add Task Modal */}
++              {showAddTask && (
++                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
++                  <div className="absolute inset-0 bg-black/30" onClick={() => setShowAddTask(false)} />
++                  <div className="relative w-full max-w-lg bg-white rounded-2xl border-2 p-6" style={{ borderColor: "#E8E8E8" }}>
++                    <div className="flex items-start justify-between mb-4">
++                      <h2 className="text-2xl" style={{ fontFamily: "'Bodoni Moda', serif", color: "#2C2C2C", fontWeight: 400 }}>
++                        New Task
++                      </h2>
++                      <button onClick={() => setShowAddTask(false)} aria-label="Close">
++                        <X className="w-5 h-5" />
++                      </button>
++                    </div>
++
++                    <div className="space-y-3">
++                      <div>
++                        <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
++                          Title
++                        </label>
++                        <input
++                          className="mt-1 w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400"
++                          style={{ borderColor: "#E8E8E8" }}
++                          value={newTask.title}
++                          onChange={(e) => setNewTask((t) => ({ ...t, title: e.target.value }))}
++                          placeholder="e.g. Finish podcast outline"
++                        />
++                      </div>
++
++                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
++                        <div>
++                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
++                            Quadrant
++                          </label>
++                          <select
++                            className="mt-1 w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400 bg-white"
++                            style={{ borderColor: "#E8E8E8" }}
++                            value={newTask.priority}
++                            onChange={(e) => setNewTask((t) => ({ ...t, priority: e.target.value }))}
++                          >
++                            <option value="high">Do First (High)</option>
++                            <option value="medium">Schedule (Medium)</option>
++                            <option value="low">Delegate (Low)</option>
++                            <option value="later">Later (Later)</option>
++                          </select>
++                        </div>
++
++                        <div>
++                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
++                            Category
++                          </label>
++                          <select
++                            className="mt-1 w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400 bg-white"
++                            style={{ borderColor: "#E8E8E8" }}
++                            value={newTask.category}
++                            onChange={(e) => setNewTask((t) => ({ ...t, category: e.target.value }))}
++                          >
++                            {Object.keys(categories).map((c) => (
++                              <option key={c} value={c}>
++                                {c}
++                              </option>
++                            ))}
++                          </select>
++                        </div>
++                      </div>
++
++                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
++                        <div>
++                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
++                            Due date
++                          </label>
++                          <input
++                            type="date"
++                            className="mt-1 w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400"
++                            style={{ borderColor: "#E8E8E8" }}
++                            value={newTask.dueDate}
++                            onChange={(e) => setNewTask((t) => ({ ...t, dueDate: e.target.value }))}
++                          />
++                        </div>
++
++                        <div>
++                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
++                            Estimate (mins)
++                          </label>
++                          <input
++                            type="number"
++                            min="0"
++                            className="mt-1 w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400"
++                            style={{ borderColor: "#E8E8E8" }}
++                            value={newTask.timeEstimate}
++                            onChange={(e) => setNewTask((t) => ({ ...t, timeEstimate: e.target.value }))}
++                          />
++                        </div>
++                      </div>
++
++                      <div>
++                        <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
++                          Notes
++                        </label>
++                        <textarea
++                          className="mt-1 w-full p-3 border-2 rounded-lg focus:outline-none focus:border-gray-400"
++                          style={{ borderColor: "#E8E8E8" }}
++                          rows="4"
++                          value={newTask.notes}
++                          onChange={(e) => setNewTask((t) => ({ ...t, notes: e.target.value }))}
++                          placeholder="Optional notes..."
++                        />
++                      </div>
++
++                      <button
++                        onClick={addTask}
++                        className="w-full px-4 py-3 rounded-lg font-semibold text-white"
++                        style={{ backgroundColor: "#9B6B6E" }}
++                      >
++                        Add Task
++                      </button>
++                    </div>
++                  </div>
++                </div>
++              )}
++            </div>
++          </div>
++        );
++      }
++
++      const TaskCard = ({ task, cat, CategoryIcon, isExpanded, setExpandedTask, toggleTask, deleteTask, addSubtask, toggleSubtask }) => {
++        const [subtaskInput, setSubtaskInput] = useState("");
++
++        return (
++          <div
++            className="border-2 rounded-lg transition-all hover:shadow-md"
++            style={{
++              borderColor: isExpanded ? cat.color : "#E8E8E8",
++              backgroundColor: isExpanded ? "#FAFAF8" : "white",
++            }}
++          >
++            <div className="p-4 cursor-pointer" onClick={() => setExpandedTask(isExpanded ? null : task.id)}>
++              <div className="flex items-start gap-3">
++                <button
++                  onClick={(e) => {
++                    e.stopPropagation();
++                    toggleTask(task.id);
++                  }}
++                  className="flex-shrink-0 mt-1"
++                  aria-label="Toggle complete"
++                >
++                  {task.completed ? (
++                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.color }}>
++                      <Check className="w-3 h-3 text-white font-bold" />
++                    </div>
++                  ) : (
++                    <Circle className="w-5 h-5" style={{ color: cat.color, strokeWidth: 2.5 }} />
++                  )}
++                </button>
++
++                <div className="flex-1 min-w-0">
++                  <h3 className="text-base font-semibold mb-1" style={{ color: "#2C2C2C" }}>
++                    {task.title}
++                  </h3>
++
++                  <div className="flex items-center gap-2 text-xs">
++                    <CategoryIcon className="w-3 h-3" style={{ color: cat.color }} />
++                    <span className="font-medium" style={{ color: "#6B6B6B" }}>
++                      {task.category}
++                    </span>
++                    {!!task.timeEstimate && (
++                      <>
++                        <span style={{ color: "#D0D0D0" }}>•</span>
++                        <span className="font-medium" style={{ color: "#6B6B6B" }}>
++                          {task.timeEstimate}m
++                        </span>
++                      </>
++                    )}
++                    {task.carriedFrom && (
++                      <>
++                        <span style={{ color: "#D0D0D0" }}>•</span>
++                        <span className="font-medium" style={{ color: "#9B6B6E" }}>
++                          carried from {task.carriedFrom}
++                        </span>
++                      </>
++                    )}
++                  </div>
++                </div>
++
++                <ChevronRight
++                  className="w-5 h-5 transition-transform flex-shrink-0"
++                  style={{ color: "#9B6B6E", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
++                />
++              </div>
++            </div>
++
++            {isExpanded && (
++              <div className="px-4 pb-4 pt-2 border-t-2 space-y-3" style={{ borderColor: "#F5F5F5" }}>
++                {task.dueDate && (
++                  <div>
++                    <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
++                      Due Date
++                    </div>
++                    <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "#6B6B6B" }}>
++                      <Calendar className="w-4 h-4" />
++                      <span>{new Date(task.dueDate).toLocaleDateString()}</span>
++                    </div>
++                  </div>
++                )}
++
++                {task.notes && (
++                  <div>
++                    <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
++                      Notes
++                    </div>
++                    <p className="text-sm font-medium" style={{ color: "#6B6B6B", lineHeight: "1.6" }}>
++                      {task.notes}
++                    </p>
++                  </div>
++                )}
++
++                <div>
++                  <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "#9B6B6E" }}>
++                    Subtasks
++                  </div>
++
++                  {task.subtasks && task.subtasks.length > 0 && (
++                    <div className="space-y-2 mb-2">
++                      {task.subtasks.map((subtask) => (
++                        <div key={subtask.id} className="flex items-center gap-2">
++                          <button onClick={() => toggleSubtask(task.id, subtask.id)} className="flex-shrink-0" aria-label="Toggle subtask">
++                            {subtask.completed ? (
++                              <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: cat.color }}>
++                                <Check className="w-3 h-3 text-white" />
+                               </div>
++                            ) : (
++                              <div className="w-4 h-4 rounded border-2" style={{ borderColor: cat.color }} />
++                            )}
++                          </button>
++
++                          <span className={`text-sm font-medium ${subtask.completed ? "line-through opacity-60" : ""}`} style={{ color: "#6B6B6B" }}>
++                            {subtask.text}
++                          </span>
++                        </div>
++                      ))}
++                    </div>
++                  )}
++
++                  <div className="flex items-center gap-2">
++                    <input
++                      className="flex-1 p-2 border-2 rounded-lg text-sm"
++                      style={{ borderColor: "#E8E8E8" }}
++                      placeholder="Add subtask..."
++                      value={subtaskInput}
++                      onChange={(e) => setSubtaskInput(e.target.value)}
++                    />
++                    <button
++                      onClick={() => {
++                        addSubtask(task.id, subtaskInput);
++                        setSubtaskInput("");
++                      }}
++                      className="px-3 py-2 rounded-lg text-sm font-semibold"
++                      style={{ backgroundColor: cat.color, color: "white" }}
++                    >
++                      Add
++                    </button>
++                  </div>
++                </div>
++
++                <div className="flex items-center justify-between pt-2">
++                  <button
++                    onClick={() => deleteTask(task.id)}
++                    className="text-xs font-semibold px-2 py-1 rounded border-2 hover:bg-gray-50"
++                    style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
++                  >
++                    Delete
++                  </button>
++                </div>
++              </div>
++            )}
++          </div>
++        );
++      };
+ 
+-                              {isExpanded && (
+-                                <div className="px-4 pb-4 pt-2 border-t-2 space-y-3" style={{ borderColor: "#F5F5F5" }}>
+-                                  {task.dueDate && (
+-                                    <div>
+-                                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
+-                                        Due Date
+-                                      </div>
+-                                      <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "#6B6B6B" }}>
+-                                        <Calendar className="w-4 h-4" />
+-                                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+-                                      </div>
+-                                    </div>
+-                                  )}
+-
+-                                  {task.notes && (
+-                                    <div>
+-                                      <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#9B6B6E" }}>
+-                                        Notes
+-                                      </div>
+-                                      <p className="text-sm font-medium" style={{ color: "#6B6B6B", lineHeight: "1.6" }}>
+-                                        {task.notes}
+-                                      </p>
+-                                    </div>
+-                                  )}
+-
+-                                  <div>
+-                                    <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "#9B6B6E" }}>
+-                                      Subtasks
+-                                    </div>
+-
+-                                    {task.subtasks && task.subtasks.length > 0 && (
+-                                      <div className="space-y-2 mb-2">
+-                                        {task.subtasks.map((subtask) => (
+-                                          <div key={subtask.id} className="flex items-center gap-2">
+-                                            <button onClick={() => toggleSubtask(task.id, subtask.id)} className="flex-shrink-0" aria-label="Toggle subtask">
+-                                              {subtask.completed ? (
+-                                                <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: cat.color }}>
+-                                                  <Check className="w-3 h-3 text-white" />
+-                                                </div>
+-                                              ) : (
+-                                                <div className="w-4 h-4 rounded border-2" style={{ borderColor: cat.color }} />
+-                                              )}
+-                                            </button>
+-
+-                                            <span className={`text-sm font-medium ${subtask.completed ? "line-through opacity-
++      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
++    </script>
++  </body>
++</html>
+ 
+EOF
+)
