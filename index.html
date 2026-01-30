@@ -524,7 +524,6 @@
           redrawAllStrokes();
         };
 
-        // Keep canvas sized correctly for iPad Safari (visualViewport) + rotation changes
         useEffect(() => {
           const onResize = () => resizeCanvas();
           window.addEventListener("resize", onResize);
@@ -532,7 +531,6 @@
           const vv = window.visualViewport;
           vv?.addEventListener("resize", onResize);
 
-          // initial
           requestAnimationFrame(resizeCanvas);
 
           return () => {
@@ -587,7 +585,6 @@
           const pts = stroke.points;
           pts.push(p);
 
-          // incremental draw
           if (pts.length >= 2) {
             ctx.strokeStyle = stroke.color;
             ctx.lineWidth = stroke.width;
@@ -629,9 +626,7 @@
         };
 
         const toggleDrawingMode = () => setIsDrawingMode((v) => !v);
-
         const clearDrawing = () => setDrawByDay((prev) => ({ ...prev, [selectedDate]: { strokes: [] } }));
-
         const undoStroke = () => {
           setDrawByDay((prev) => {
             const day = prev[selectedDate] || { strokes: [] };
@@ -737,10 +732,6 @@
 
         const completedTasks = tasksToday.filter((t) => t.completed);
 
-        const totalOpen = tasksToday.filter((t) => !t.completed).length;
-        const totalDone = completedTasks.length;
-        const totalMinutesOpen = tasksToday.filter((t) => !t.completed).reduce((a, t) => a + (Number(t.timeEstimate) || 0), 0);
-
         // Close modal on Escape
         useEffect(() => {
           const onKey = (e) => {
@@ -755,12 +746,12 @@
 
         return (
           <div className="min-h-screen" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
-            {/* Always-visible canvas so drawings persist on screen */}
+            {/* ALWAYS on top: visible annotations overlay */}
             <div
               className="fixed inset-0"
               style={{
-                zIndex: isDrawingMode ? 60 : 1,
-                pointerEvents: isDrawingMode ? "auto" : "none",
+                zIndex: 9999, // always above everything visually
+                pointerEvents: isDrawingMode ? "auto" : "none", // click-through when not drawing
               }}
             >
               <canvas
@@ -774,11 +765,11 @@
               />
             </div>
 
-            {/* Drawing toolbar only when drawing is on */}
+            {/* Drawing toolbar above canvas */}
             {isDrawingMode && (
               <div
                 className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white border-2 rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3 flex-wrap justify-center"
-                style={{ zIndex: 70, borderColor: "#E8E8E8" }}
+                style={{ zIndex: 10000, borderColor: "#E8E8E8" }}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
@@ -895,19 +886,6 @@
                     />
                   </div>
                 </div>
-
-                {/* Tiny summary chips */}
-                <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
-                  <span className="px-3 py-2 rounded-full text-sm font-semibold border-2 bg-white" style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}>
-                    {totalOpen} open
-                  </span>
-                  <span className="px-3 py-2 rounded-full text-sm font-semibold border-2 bg-white" style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}>
-                    {totalDone} done
-                  </span>
-                  <span className="px-3 py-2 rounded-full text-sm font-semibold border-2 bg-white" style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}>
-                    ~{totalMinutesOpen} mins planned
-                  </span>
-                </div>
               </div>
 
               {/* Controls */}
@@ -928,20 +906,6 @@
                 >
                   <Edit2 className="w-5 h-5" />
                   <span>{isDrawingMode ? "Drawing On" : "Draw on Screen"}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!confirm("Reset this day? This clears today's tasks + drawings only.")) return;
-                    setTasksByDay((prev) => ({ ...prev, [selectedDate]: { tasks: [] } }));
-                    setDrawByDay((prev) => ({ ...prev, [selectedDate]: { strokes: [] } }));
-                    setExpandedTask(null);
-                  }}
-                  className="px-6 py-3 bg-white border-2 rounded-lg transition-all hover:shadow-md flex items-center gap-2 font-semibold"
-                  style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                >
-                  <RotateCcw className="w-5 h-5" />
-                  <span>Reset Day</span>
                 </button>
               </div>
 
@@ -1010,23 +974,6 @@
                       The “I did stuff” museum.
                     </div>
                   </div>
-
-                  {completedTasks.length > 0 ? (
-                    <button
-                      onClick={() => {
-                        setTasksByDay((prev) => {
-                          const day = prev[selectedDate];
-                          if (!day) return prev;
-                          return { ...prev, [selectedDate]: { ...day, tasks: day.tasks.filter((t) => !t.completed) } };
-                        });
-                        setExpandedTask(null);
-                      }}
-                      className="px-4 py-2 rounded-lg border-2 font-semibold hover:bg-gray-50"
-                      style={{ borderColor: "#E8E8E8", color: "#6B6B6B" }}
-                    >
-                      Clear completed
-                    </button>
-                  ) : null}
                 </div>
 
                 {completedTasks.length === 0 ? (
@@ -1070,16 +1017,18 @@
                 )}
               </div>
 
-              {/* Add Task Modal */}
+              {/* Add Task Modal (simple) */}
               {showAddTask && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+                <div className="fixed inset-0 z-[20] flex items-center justify-center px-4">
                   <div className="absolute inset-0 bg-black/20" onClick={() => setShowAddTask(false)} />
                   <div className="relative bg-white w-full max-w-xl rounded-2xl border-2 shadow-xl p-6" style={{ borderColor: "#E8E8E8" }}>
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h2 className="text-2xl font-bold" style={{ color: "#2C2C2C" }}>New Task</h2>
+                        <h2 className="text-2xl font-bold" style={{ color: "#2C2C2C" }}>
+                          New Task
+                        </h2>
                         <div className="text-sm font-medium" style={{ color: "#6B6B6B" }}>
-                          Slot it into a quadrant by picking urgency/importance.
+                          Title + quadrant + category. Boom.
                         </div>
                       </div>
                       <button onClick={() => setShowAddTask(false)} className="p-2 rounded-lg border-2 hover:bg-gray-50" style={{ borderColor: "#E8E8E8" }}>
@@ -1096,8 +1045,10 @@
                           autoFocus
                           value={newTask.title}
                           onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))}
-                          onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
-                          placeholder="e.g., Finish the outline, book the appointment, answer Slack…"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") addTask();
+                          }}
+                          placeholder="e.g., Finish the outline…"
                           className="mt-2 w-full p-3 border-2 rounded-lg font-medium focus:outline-none"
                           style={{ borderColor: "#E8E8E8" }}
                         />
@@ -1115,7 +1066,9 @@
                             style={{ borderColor: "#E8E8E8" }}
                           >
                             {Object.keys(categories).map((c) => (
-                              <option key={c} value={c}>{c}</option>
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -1136,50 +1089,6 @@
                             <option value="later">Later (Neither)</option>
                           </select>
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6BE" }}>
-                            Due Date (optional)
-                          </label>
-                          <input
-                            type="date"
-                            value={newTask.dueDate}
-                            onChange={(e) => setNewTask((p) => ({ ...p, dueDate: e.target.value }))}
-                            className="mt-2 w-full p-3 border-2 rounded-lg font-medium focus:outline-none"
-                            style={{ borderColor: "#E8E8E8" }}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
-                            Time estimate (mins)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="5"
-                            value={newTask.timeEstimate}
-                            onChange={(e) => setNewTask((p) => ({ ...p, timeEstimate: e.target.value }))}
-                            className="mt-2 w-full p-3 border-2 rounded-lg font-medium focus:outline-none"
-                            style={{ borderColor: "#E8E8E8" }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9B6B6E" }}>
-                          Notes (optional)
-                        </label>
-                        <textarea
-                          value={newTask.notes}
-                          onChange={(e) => setNewTask((p) => ({ ...p, notes: e.target.value }))}
-                          placeholder="Any context, links, constraints, or ‘future me’ instructions…"
-                          rows="3"
-                          className="mt-2 w-full p-3 border-2 rounded-lg font-medium focus:outline-none"
-                          style={{ borderColor: "#E8E8E8" }}
-                        />
                       </div>
 
                       <div className="flex items-center justify-between pt-2">
@@ -1206,7 +1115,7 @@
               )}
 
               <div className="mt-10 text-center text-xs font-medium" style={{ color: "#9A9A9A" }}>
-                Tip: tasks carry over from the previous day if left unfinished. Your future self is welcome.
+                Tip: unfinished tasks carry over to the next day. Time is a circle, etc.
               </div>
             </div>
           </div>
